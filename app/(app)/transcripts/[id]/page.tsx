@@ -30,7 +30,7 @@ export default function TranscriptDetailPage({
         className="flex flex-col"
         style={{ backgroundColor: "#FBF5EE", minHeight: "100dvh" }}
       >
-        <div style={{ padding: "16px 20px", paddingBottom: 120 }}>
+        <div style={{ paddingTop: 16, paddingRight: 20, paddingBottom: 120, paddingLeft: 20 }}>
           <div className="mx-auto max-w-3xl">
             {/* Skeleton loader */}
             <div className="animate-pulse flex flex-col" style={{ gap: 16 }}>
