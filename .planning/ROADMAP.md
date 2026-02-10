@@ -83,10 +83,12 @@ Plans:
   3. AI extracts action items with assigned speakers/participants
   4. User can select transcription language from settings
   5. User can toggle auto-punctuation on/off and see it apply to new recordings
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: TBD during phase planning
+- [ ] 04-01-PLAN.md -- Schema (aiSummaries + userSettings tables), Claude API action, settings CRUD
+- [ ] 04-02-PLAN.md -- Wire AI Summary component to backend with generate flow and skeleton loading
+- [ ] 04-03-PLAN.md -- Interactive settings page (language picker, punctuation toggle) + Deepgram URL wiring
 
 ## Progress
 
@@ -98,4 +100,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Foundation & Real-Time Transcription | 3/3 | Complete | 2026-02-10 |
 | 2. File Upload & Batch Processing | 2/2 | Complete | 2026-02-10 |
 | 3. Library & Organization | 3/3 | Complete | 2026-02-10 |
-| 4. AI Intelligence & Settings | 0/TBD | Not started | - |
+| 4. AI Intelligence & Settings | 0/3 | Not started | - |
