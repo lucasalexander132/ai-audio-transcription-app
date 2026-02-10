@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries -- record anything, get a searchable, actionable transcript instantly.
-**Current focus:** v1.1 Micro Interactions -- Phase 05 ready to plan
+**Current focus:** v1.1 Micro Interactions -- Phase 05 in progress
 
 ## Current Position
 
 Milestone: v1.1 Micro Interactions
 Phase: 05 of 08 (Foundation + Search Flash Fix)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-02-10 -- Roadmap created for v1.1 (4 phases, 4 requirements mapped)
+Plan: 01 of 02 in phase 05
+Status: In progress
+Last activity: 2026-02-10 -- Completed 05-01-PLAN.md (search flash fix)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] ~10% (1 plan complete, phase 05 in progress)
 
 ## Performance Metrics
 
@@ -44,6 +44,9 @@ v1.1 decisions:
 - Two-tier strategy: CSS-only for simple interactions, Motion for complex orchestration
 - FrozenRouter pattern for page transitions (internal API risk, graceful degradation planned)
 - Search flash fix MUST land before any animation work (Phase 05 first)
+- [05-01] Used searchInput.length >= 2 (immediate) for isSearchActive instead of debouncedSearch -- prevents flash during both debounce gap and Convex loading gap
+- [05-01] Used precisely-typed generic useStableQuery instead of cast-based typing -- better TypeScript strictness
+- [05-01] useStableQuery only needed for search query; allTranscripts/tags/speakers use regular useQuery (static args)
 
 ### Pending Todos
 
@@ -56,6 +59,6 @@ v1.1 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-10 -- Roadmap created for v1.1 Micro Interactions
-Stopped at: Roadmap complete, Phase 05 ready to plan
+Last session: 2026-02-10 -- Completed 05-01-PLAN.md (search flash fix)
+Stopped at: Phase 05, Plan 01 complete. Plan 02 (animation foundation) next.
 Resume file: None
