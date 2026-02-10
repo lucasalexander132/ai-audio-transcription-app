@@ -11,6 +11,8 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        cream: "#FFF9F0",
+        "burnt-sienna": "#D2691E",
       },
     },
   },
