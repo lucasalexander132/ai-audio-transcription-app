@@ -18,7 +18,18 @@ export default defineSchema({
     duration: v.optional(v.number()),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
-  }).index("by_userId", ["userId"]),
+    isStarred: v.optional(v.boolean()),
+    fullText: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["userId"],
+    })
+    .searchIndex("search_content", {
+      searchField: "fullText",
+      filterFields: ["userId"],
+    }),
 
   words: defineTable({
     transcriptId: v.id("transcripts"),
@@ -41,4 +52,18 @@ export default defineSchema({
     format: v.string(),
     size: v.number(),
   }).index("by_transcript", ["transcriptId"]),
+
+  tags: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_name", ["userId", "name"]),
+
+  transcriptTags: defineTable({
+    transcriptId: v.id("transcripts"),
+    tagId: v.id("tags"),
+  })
+    .index("by_transcript", ["transcriptId"])
+    .index("by_tag", ["tagId"]),
 });
