@@ -12,7 +12,7 @@ This roadmap delivers a mobile-first PWA for real-time audio transcription with 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation & Real-Time Transcription** - Auth, recording, live transcription, playback, PWA
+- [x] **Phase 1: Foundation & Real-Time Transcription** - Auth, recording, live transcription, playback, PWA
 - [ ] **Phase 2: File Upload & Batch Processing** - Upload audio files for transcription
 - [ ] **Phase 3: Library & Organization** - Search, filters, tags, export, starred transcripts
 - [ ] **Phase 4: AI Intelligence & Settings** - Summaries, action items, settings
@@ -37,8 +37,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Project scaffold, Convex Auth, PWA manifest, FAB navigation, database schema
-- [ ] 01-02-PLAN.md -- Audio recording, Deepgram proxy, live waveform, real-time transcription
-- [ ] 01-03-PLAN.md -- Transcript view, audio playback with speed controls, speaker rename
+- [x] 01-02-PLAN.md -- Audio recording, Deepgram proxy, live waveform, real-time transcription
+- [x] 01-03-PLAN.md -- Transcript view, audio playback with speed controls, speaker rename
 
 ### Phase 2: File Upload & Batch Processing
 **Goal**: Users can upload pre-recorded audio files and get transcriptions
@@ -49,10 +49,11 @@ Plans:
   2. User sees upload progress and clear error messages if file is too large or wrong format
   3. Uploaded files are transcribed with same quality as live recordings (speaker diarization, timestamps)
   4. User can view uploaded file transcripts in the same interface as live recordings
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD during phase planning
+- [ ] 02-01-PLAN.md -- Schema extension (processing status, source, errorMessage) + transcribeFile Convex action
+- [ ] 02-02-PLAN.md -- File upload UI component, upload hook, record page tabs, processing state in transcript detail
 
 ### Phase 3: Library & Organization
 **Goal**: Users can find, organize, and export transcripts
@@ -92,7 +93,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Real-Time Transcription | 1/3 | In progress | - |
-| 2. File Upload & Batch Processing | 0/TBD | Not started | - |
+| 1. Foundation & Real-Time Transcription | 3/3 | Complete | 2026-02-10 |
+| 2. File Upload & Batch Processing | 0/2 | Not started | - |
 | 3. Library & Organization | 0/TBD | Not started | - |
 | 4. AI Intelligence & Settings | 0/TBD | Not started | - |
