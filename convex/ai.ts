@@ -125,6 +125,12 @@ export const generateSummary = action({
       throw new Error("Claude API returned empty response");
     }
 
+    // Strip markdown fences if present (e.g. ```json ... ```)
+    let jsonText = responseText.trim();
+    if (jsonText.startsWith("```")) {
+      jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    }
+
     // Parse JSON response
     let summary: {
       overview: string;
@@ -133,7 +139,7 @@ export const generateSummary = action({
     };
 
     try {
-      summary = JSON.parse(responseText);
+      summary = JSON.parse(jsonText);
     } catch {
       throw new Error(
         `Failed to parse Claude response as JSON: ${responseText.substring(0, 200)}`
