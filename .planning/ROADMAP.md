@@ -13,7 +13,7 @@ This roadmap delivers a mobile-first PWA for real-time audio transcription with 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Real-Time Transcription** - Auth, recording, live transcription, playback, PWA
-- [ ] **Phase 2: File Upload & Batch Processing** - Upload audio files for transcription
+- [x] **Phase 2: File Upload & Batch Processing** - Upload audio files for transcription
 - [ ] **Phase 3: Library & Organization** - Search, filters, tags, export, starred transcripts
 - [ ] **Phase 4: AI Intelligence & Settings** - Summaries, action items, settings
 
@@ -52,8 +52,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Schema extension (processing status, source, errorMessage) + transcribeFile Convex action
-- [ ] 02-02-PLAN.md -- File upload UI component, upload hook, record page tabs, processing state in transcript detail
+- [x] 02-01-PLAN.md -- Schema extension (processing status, source, errorMessage) + transcribeFile Convex action
+- [x] 02-02-PLAN.md -- File upload UI component, upload hook, record page tabs, processing state in transcript detail
 
 ### Phase 3: Library & Organization
 **Goal**: Users can find, organize, and export transcripts
@@ -94,6 +94,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Real-Time Transcription | 3/3 | Complete | 2026-02-10 |
-| 2. File Upload & Batch Processing | 0/2 | Not started | - |
+| 2. File Upload & Batch Processing | 2/2 | Complete | 2026-02-10 |
 | 3. Library & Organization | 0/TBD | Not started | - |
 | 4. AI Intelligence & Settings | 0/TBD | Not started | - |
