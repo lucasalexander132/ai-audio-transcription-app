@@ -1,12 +1,13 @@
 "use client";
 
 import { use } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { AudioPlayer } from "@/app/components/audio/audio-player";
 import { TranscriptView } from "@/app/components/audio/transcript-view";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function TranscriptDetailPage({
   params,
@@ -15,10 +16,12 @@ export default function TranscriptDetailPage({
 }) {
   const { id } = use(params);
   const transcriptId = id as Id<"transcripts">;
+  const router = useRouter();
 
   const transcript = useQuery(api.transcripts.get, { id: transcriptId });
   const audioUrl = useQuery(api.recordings.getRecordingUrl, { transcriptId });
   const words = useQuery(api.transcripts.getWords, { transcriptId });
+  const deleteTranscript = useMutation(api.transcripts.deleteTranscript);
 
   // Loading state
   if (transcript === undefined) {
@@ -153,10 +156,28 @@ export default function TranscriptDetailPage({
               >
                 Recording in Progress
               </h1>
-              <p style={{ fontSize: 14, color: "#8B7E74", lineHeight: 1.5 }}>
-                This transcript is still being recorded. Complete the recording to
-                view the full transcript and audio.
+              <p style={{ fontSize: 14, color: "#8B7E74", lineHeight: 1.5, marginBottom: 16 }}>
+                This transcript is still being recorded. If the recording was
+                interrupted, you can discard it.
               </p>
+              <button
+                onClick={async () => {
+                  await deleteTranscript({ id: transcriptId });
+                  router.push("/transcripts");
+                }}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: 12,
+                  backgroundColor: "#FFF0E6",
+                  color: "#D2691E",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  border: "1px solid #F0D4BC",
+                  cursor: "pointer",
+                }}
+              >
+                Discard Recording
+              </button>
             </div>
           </div>
         </div>

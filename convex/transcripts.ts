@@ -120,6 +120,51 @@ export const updateSpeakerLabel = mutation({
   },
 });
 
+export const deleteTranscript = mutation({
+  args: { id: v.id("transcripts") },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const transcript = await ctx.db.get(args.id);
+    if (transcript === null || transcript.userId !== userId) {
+      throw new Error("Transcript not found or unauthorized");
+    }
+
+    // Delete associated words
+    const words = await ctx.db
+      .query("words")
+      .withIndex("by_transcript", (q) => q.eq("transcriptId", args.id))
+      .collect();
+    for (const word of words) {
+      await ctx.db.delete(word._id);
+    }
+
+    // Delete associated speaker labels
+    const labels = await ctx.db
+      .query("speakerLabels")
+      .withIndex("by_transcript", (q) => q.eq("transcriptId", args.id))
+      .collect();
+    for (const label of labels) {
+      await ctx.db.delete(label._id);
+    }
+
+    // Delete associated recordings
+    const recordings = await ctx.db
+      .query("recordings")
+      .withIndex("by_transcript", (q) => q.eq("transcriptId", args.id))
+      .collect();
+    for (const recording of recordings) {
+      await ctx.db.delete(recording._id);
+    }
+
+    // Delete the transcript itself
+    await ctx.db.delete(args.id);
+  },
+});
+
 export const complete = mutation({
   args: {
     transcriptId: v.id("transcripts"),

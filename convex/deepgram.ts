@@ -15,20 +15,34 @@ export const transcribeChunk = action({
       throw new Error("DEEPGRAM_API_KEY not configured");
     }
 
+    // Convert to Uint8Array for reliable fetch body handling
+    const audioBytes = new Uint8Array(args.audioData);
+    console.log(`Deepgram request: ${audioBytes.length} bytes, mime: ${args.mimeType}, offset: ${args.wordOffset}`);
+
+    if (audioBytes.length < 100) {
+      console.error("Audio data too small:", audioBytes.length, "bytes");
+      return { totalWords: args.wordOffset };
+    }
+
+    // Strip codec suffix (e.g., "audio/webm;codecs=opus" -> "audio/webm")
+    // Deepgram auto-detects format but may reject full MIME with codec params
+    const contentType = args.mimeType.split(";")[0].trim();
+
     const response = await fetch(
       "https://api.deepgram.com/v1/listen?model=nova-2&diarize=true&punctuate=true&smart_format=true",
       {
         method: "POST",
         headers: {
           "Authorization": `Token ${apiKey}`,
-          "Content-Type": args.mimeType,
+          "Content-Type": contentType,
         },
-        body: args.audioData,
+        body: audioBytes,
       }
     );
 
     if (!response.ok) {
-      console.error("Deepgram API error:", response.status, await response.text());
+      const errorText = await response.text();
+      console.error("Deepgram API error:", response.status, errorText);
       return { totalWords: args.wordOffset };
     }
 
