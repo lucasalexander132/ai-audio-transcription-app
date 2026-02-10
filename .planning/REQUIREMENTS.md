@@ -89,25 +89,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| NAV-01 | Phase 1 | Pending |
-| NAV-02 | Phase 1 | Pending |
-| REC-01 | Phase 1 | Pending |
-| REC-03 | Phase 1 | Pending |
-| REC-04 | Phase 1 | Pending |
-| TRX-01 | Phase 1 | Pending |
-| TRX-02 | Phase 1 | Pending |
-| TRX-03 | Phase 1 | Pending |
-| TRX-04 | Phase 1 | Pending |
-| TRX-05 | Phase 1 | Pending |
-| REC-02 | Phase 2 | Pending |
-| LIB-01 | Phase 3 | Pending |
-| LIB-02 | Phase 3 | Pending |
-| LIB-03 | Phase 3 | Pending |
-| LIB-04 | Phase 3 | Pending |
-| LIB-05 | Phase 3 | Pending |
-| SET-03 | Phase 3 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| NAV-01 | Phase 1 | Complete |
+| NAV-02 | Phase 1 | Complete |
+| REC-01 | Phase 1 | Complete |
+| REC-03 | Phase 1 | Complete |
+| REC-04 | Phase 1 | Complete |
+| TRX-01 | Phase 1 | Complete |
+| TRX-02 | Phase 1 | Complete |
+| TRX-03 | Phase 1 | Complete |
+| TRX-04 | Phase 1 | Complete |
+| TRX-05 | Phase 1 | Complete |
+| REC-02 | Phase 2 | Complete |
+| LIB-01 | Phase 3 | Complete |
+| LIB-02 | Phase 3 | Complete |
+| LIB-03 | Phase 3 | Complete |
+| LIB-04 | Phase 3 | Complete |
+| LIB-05 | Phase 3 | Complete |
+| SET-03 | Phase 3 | Complete |
 | AI-01 | Phase 4 | Pending |
 | AI-02 | Phase 4 | Pending |
 | AI-03 | Phase 4 | Pending |
