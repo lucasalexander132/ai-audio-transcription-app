@@ -5,34 +5,35 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries — record anything, get a searchable, actionable transcript instantly.
-**Current focus:** Phase 1 - Foundation & Real-Time Transcription
+**Current focus:** Phase 2 - File Upload & Batch Processing
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation & Real-Time Transcription)
-Plan: 3 of 3 in current phase
-Status: Awaiting checkpoint (human verification of complete Phase 1 flow)
-Last activity: 2026-02-09 — Completed 01-03-PLAN.md Task 1 (Transcript detail view)
+Phase: 2 of 4 (File Upload & Batch Processing)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-10 — Completed 02-01-PLAN.md
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 3 min
-- Total execution time: 0.15 hours
+- Total execution time: 0.18 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation-real-time-transcription | 3 | 9 min | 3 min |
+| 02-file-upload-batch-processing | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Plan 01-01 completed in 2 min (Project scaffold)
 - Plan 01-02 completed in 5 min (Real-time recording & transcription)
 - Plan 01-03 completed in 2 min (Transcript detail view)
+- Plan 02-01 completed in 2 min (Backend file upload transcription)
 
 *Updated after each plan completion*
 
@@ -56,10 +57,12 @@ Recent decisions affecting current work:
 | 01-03 | HTML5 Audio with ref for playback | No third-party player needed; native audio provides play/seek/speed | Minimal bundle impact, full control |
 | 01-03 | Click-to-edit inline speaker labels | More seamless than modal dialogs | Fast renaming workflow |
 | 01-03 | 8-color speaker palette with modulo | Warm colors first, wraps for unlimited speakers | Consistent visual identification |
+| 02-01 | Use punctuated_word from Deepgram for file uploads | Properly formatted text with punctuation and casing | Better transcript quality for uploaded files |
+| 02-01 | Set source field on existing create mutation | Backward compatibility with recording transcripts | All transcripts now have source tracking |
 
 ### Pending Todos
 
-- Awaiting human verification of complete Phase 1 flow (checkpoint Task 2 in 01-03)
+- None
 
 ### Blockers/Concerns
 
@@ -73,6 +76,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-09 — Plan 01-03 Task 1 complete, awaiting checkpoint
-Stopped at: 01-03-PLAN.md Task 2 (checkpoint: human-verify)
-Resume file: None — awaiting user verification to complete Phase 1
+Last session: 2026-02-10 — Completed 02-01 backend file upload transcription
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
