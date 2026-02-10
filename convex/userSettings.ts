@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { auth } from "./auth";
 
 export const getUserSettings = query({
@@ -19,6 +19,17 @@ export const getUserSettings = query({
       transcriptionLanguage: settings?.transcriptionLanguage ?? "en",
       autoPunctuation: settings?.autoPunctuation ?? true,
     };
+  },
+});
+
+export const getSettingsForUser = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .first();
+    return settings ?? { transcriptionLanguage: "en", autoPunctuation: true };
   },
 });
 

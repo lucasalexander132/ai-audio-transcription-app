@@ -2,6 +2,15 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 
+function buildDeepgramUrl(settings: { transcriptionLanguage?: string; autoPunctuation?: boolean }): string {
+  const lang = settings.transcriptionLanguage || "en";
+  const params = [`model=nova-2`, `diarize=true`, `language=${lang}`];
+  if (settings.autoPunctuation !== false) {
+    params.push("punctuate=true", "smart_format=true");
+  }
+  return `https://api.deepgram.com/v1/listen?${params.join("&")}`;
+}
+
 export const transcribeChunk = action({
   args: {
     transcriptId: v.id("transcripts"),
@@ -28,17 +37,21 @@ export const transcribeChunk = action({
     // Deepgram auto-detects format but may reject full MIME with codec params
     const contentType = args.mimeType.split(";")[0].trim();
 
-    const response = await fetch(
-      "https://api.deepgram.com/v1/listen?model=nova-2&diarize=true&punctuate=true&smart_format=true",
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Token ${apiKey}`,
-          "Content-Type": contentType,
-        },
-        body: audioBytes,
-      }
-    );
+    // Look up user settings for dynamic Deepgram URL construction
+    const userId = await ctx.runQuery(internal.transcripts.getTranscriptOwner, { transcriptId: args.transcriptId });
+    const settings = userId
+      ? await ctx.runQuery(internal.userSettings.getSettingsForUser, { userId })
+      : { transcriptionLanguage: "en", autoPunctuation: true };
+    const url = buildDeepgramUrl(settings);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${apiKey}`,
+        "Content-Type": contentType,
+      },
+      body: audioBytes,
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -95,18 +108,22 @@ export const transcribeFile = action({
       // Strip codec params from MIME type
       const contentType = args.mimeType.split(";")[0].trim();
 
+      // Look up user settings for dynamic Deepgram URL construction
+      const userId = await ctx.runQuery(internal.transcripts.getTranscriptOwner, { transcriptId: args.transcriptId });
+      const settings = userId
+        ? await ctx.runQuery(internal.userSettings.getSettingsForUser, { userId })
+        : { transcriptionLanguage: "en", autoPunctuation: true };
+      const url = buildDeepgramUrl(settings);
+
       // POST to Deepgram REST API
-      const response = await fetch(
-        "https://api.deepgram.com/v1/listen?model=nova-2&diarize=true&punctuate=true&smart_format=true",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Token ${apiKey}`,
-            "Content-Type": contentType,
-          },
-          body: audioBytes,
-        }
-      );
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Token ${apiKey}`,
+          "Content-Type": contentType,
+        },
+        body: audioBytes,
+      });
 
       if (!response.ok) {
         const errorText = await response.text();

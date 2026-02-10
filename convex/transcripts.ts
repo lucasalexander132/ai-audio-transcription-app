@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { auth } from "./auth";
 
 export const create = mutation({
@@ -138,6 +138,26 @@ export const updateSpeakerLabel = mutation({
         label: args.label,
       });
     }
+  },
+});
+
+export const updateTitle = mutation({
+  args: {
+    id: v.id("transcripts"),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const transcript = await ctx.db.get(args.id);
+    if (transcript === null || transcript.userId !== userId) {
+      throw new Error("Transcript not found or unauthorized");
+    }
+
+    await ctx.db.patch(args.id, { title: args.title });
   },
 });
 
@@ -328,6 +348,36 @@ export const getSpeakerLabels = query({
   },
 });
 
+export const getAllSpeakerLabels = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await auth.getUserId(ctx);
+    if (userId === null) return [];
+
+    const transcripts = await ctx.db
+      .query("transcripts")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    const result: { transcriptId: string; speakerNumber: number; label: string }[] = [];
+    for (const t of transcripts) {
+      const labels = await ctx.db
+        .query("speakerLabels")
+        .withIndex("by_transcript", (q) => q.eq("transcriptId", t._id))
+        .collect();
+      for (const l of labels) {
+        result.push({
+          transcriptId: l.transcriptId,
+          speakerNumber: l.speakerNumber,
+          label: l.label,
+        });
+      }
+    }
+
+    return result;
+  },
+});
+
 export const getAdjacentIds = query({
   args: { id: v.id("transcripts") },
   handler: async (ctx, args) => {
@@ -397,6 +447,14 @@ export const completeTranscript = internalMutation({
       duration: args.duration,
       fullText: fullText || undefined,
     });
+  },
+});
+
+export const getTranscriptOwner = internalQuery({
+  args: { transcriptId: v.id("transcripts") },
+  handler: async (ctx, args) => {
+    const transcript = await ctx.db.get(args.transcriptId);
+    return transcript?.userId ?? null;
   },
 });
 
