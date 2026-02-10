@@ -185,6 +185,164 @@ export default function TranscriptDetailPage({
     );
   }
 
+  // Processing state - show spinner (Convex reactivity auto-updates when status changes)
+  if (transcript.status === "processing") {
+    return (
+      <div
+        className="flex flex-col"
+        style={{ backgroundColor: "#FBF5EE", minHeight: "100dvh" }}
+      >
+        <div style={{ padding: "16px 20px" }}>
+          <div className="mx-auto max-w-3xl">
+            <Link
+              href="/transcripts"
+              className="inline-flex items-center"
+              style={{ gap: 6, color: "#D2691E", fontSize: 14, fontWeight: 500, marginBottom: 24 }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                style={{ width: 18, height: 18 }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 19.5L8.25 12l7.5-7.5"
+                />
+              </svg>
+              Back to Transcripts
+            </Link>
+            <h1
+              className="font-serif"
+              style={{ fontSize: 24, fontWeight: 600, color: "#1A1A1A", marginBottom: 16 }}
+            >
+              {transcript.title || "Uploaded File"}
+            </h1>
+            <div
+              className="rounded-2xl text-center"
+              style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "48px 24px" }}
+            >
+              <div className="flex justify-center" style={{ marginBottom: 20 }}>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    border: "3px solid #EDE6DD",
+                    borderTopColor: "#D4622B",
+                    animation: "spin 1s linear infinite",
+                  }}
+                />
+              </div>
+              <p style={{ fontSize: 14, fontWeight: 500, color: "#8B7E74", marginBottom: 6 }}>
+                Transcribing your file...
+              </p>
+              <p style={{ fontSize: 12, color: "#B5A99A" }}>
+                This usually takes a few seconds
+              </p>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state - show error message with delete option
+  if (transcript.status === "error") {
+    return (
+      <div
+        className="flex flex-col"
+        style={{ backgroundColor: "#FBF5EE", minHeight: "100dvh" }}
+      >
+        <div style={{ padding: "16px 20px" }}>
+          <div className="mx-auto max-w-3xl">
+            <Link
+              href="/transcripts"
+              className="inline-flex items-center"
+              style={{ gap: 6, color: "#D2691E", fontSize: 14, fontWeight: 500, marginBottom: 24 }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                style={{ width: 18, height: 18 }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 19.5L8.25 12l7.5-7.5"
+                />
+              </svg>
+              Back to Transcripts
+            </Link>
+            <div
+              className="rounded-2xl text-center"
+              style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "40px 24px" }}
+            >
+              <div className="flex justify-center" style={{ marginBottom: 16 }}>
+                <div
+                  className="flex items-center justify-center"
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: "#FFF0E6",
+                  }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    fill="none"
+                    stroke="#E53E3E"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" strokeLinecap="round" />
+                    <line x1="9" y1="9" x2="15" y2="15" strokeLinecap="round" />
+                  </svg>
+                </div>
+              </div>
+              <h1
+                className="font-serif"
+                style={{ fontSize: 20, fontWeight: 600, color: "#1A1A1A", marginBottom: 8 }}
+              >
+                Transcription Failed
+              </h1>
+              <p style={{ fontSize: 14, color: "#8B7E74", lineHeight: 1.5, marginBottom: 20 }}>
+                {transcript.errorMessage || "Something went wrong while transcribing your file."}
+              </p>
+              <button
+                onClick={async () => {
+                  await deleteTranscript({ id: transcriptId });
+                  router.push("/transcripts");
+                }}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: 12,
+                  backgroundColor: "#FFF0E6",
+                  color: "#E53E3E",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  border: "1px solid #F0D4BC",
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Format date
   const createdDate = new Date(transcript.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
@@ -214,8 +372,10 @@ export default function TranscriptDetailPage({
     >
       <div
         style={{
-          padding: "16px 20px",
+          paddingTop: 16,
+          paddingRight: 20,
           paddingBottom: 120,
+          paddingLeft: 20,
         }}
       >
         <div className="mx-auto max-w-3xl flex flex-col" style={{ gap: 16 }}>
@@ -326,7 +486,7 @@ export default function TranscriptDetailPage({
 
           {/* Audio Player - render once URL query resolves */}
           {audioUrl !== undefined && (
-            <AudioPlayer audioUrl={audioUrl} />
+            <AudioPlayer audioUrl={audioUrl} fallbackDuration={transcript.duration} />
           )}
 
           {/* Transcript View - scrollable, takes remaining space */}
