@@ -70,7 +70,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md -- Schema extensions (isStarred, fullText, search indexes, tags/transcriptTags tables) + backend queries/mutations
-- [ ] 03-02-PLAN.md -- Library page overhaul: search bar, filter tabs, star toggle, enhanced transcript cards, empty states
+- [x] 03-02-PLAN.md -- Library page overhaul: search bar, filter tabs, star toggle, enhanced transcript cards, empty states
 - [ ] 03-03-PLAN.md -- Transcript detail: export menu (PDF/TXT), tag picker modal, tag chips
 
 ### Phase 4: AI Intelligence & Settings
@@ -97,5 +97,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Real-Time Transcription | 3/3 | Complete | 2026-02-10 |
 | 2. File Upload & Batch Processing | 2/2 | Complete | 2026-02-10 |
-| 3. Library & Organization | 1/3 | In progress | - |
+| 3. Library & Organization | 2/3 | In progress | - |
 | 4. AI Intelligence & Settings | 0/TBD | Not started | - |
