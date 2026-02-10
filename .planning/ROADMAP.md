@@ -28,15 +28,17 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User can start recording via microphone with visual waveform feedback
   3. User sees real-time transcription text appear as they speak
   4. User sees speakers automatically labeled (Speaker 1, Speaker 2, etc.) with timestamps
-  5. User can rename speaker labels (Speaker 1 → Sarah Chen)
+  5. User can rename speaker labels (Speaker 1 -> Sarah Chen)
   6. User can pause/resume recording during a session and see elapsed time
   7. User can play back recorded audio with seek bar and speed controls (1x, 1.5x, 2x)
   8. App is installable as PWA on mobile devices
   9. User can navigate to Transcripts, Record, and Settings via FAB menu
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD during phase planning
+- [ ] 01-01-PLAN.md -- Project scaffold, Convex Auth, PWA manifest, FAB navigation, database schema
+- [ ] 01-02-PLAN.md -- Audio recording, Deepgram proxy, live waveform, real-time transcription
+- [ ] 01-03-PLAN.md -- Transcript view, audio playback with speed controls, speaker rename
 
 ### Phase 2: File Upload & Batch Processing
 **Goal**: Users can upload pre-recorded audio files and get transcriptions
@@ -86,11 +88,11 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Real-Time Transcription | 0/TBD | Not started | - |
+| 1. Foundation & Real-Time Transcription | 0/3 | Planned | - |
 | 2. File Upload & Batch Processing | 0/TBD | Not started | - |
 | 3. Library & Organization | 0/TBD | Not started | - |
 | 4. AI Intelligence & Settings | 0/TBD | Not started | - |
