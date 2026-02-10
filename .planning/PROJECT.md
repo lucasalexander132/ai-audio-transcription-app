@@ -26,7 +26,10 @@ Real-time audio transcription with intelligent AI summaries — record anything,
 
 ### Active
 
-(None — v1.0 complete. Define new requirements with `/gsd:new-milestone`)
+- [ ] Animated page transitions between routes
+- [ ] Slide transitions between tabs on transcript detail page with content animate-in
+- [ ] Search filtering animates transcript cards in/out as results narrow
+- [ ] Fix search flash bug (unfiltered state briefly visible when typing)
 
 ### Out of Scope
 
@@ -79,5 +82,15 @@ Shipped v1.0 with 8,586 LOC TypeScript across 84 files.
 | Prompt-based JSON from Claude | Simpler than structured outputs SDK | Good — strip markdown fences as safety net |
 | buildDeepgramUrl helper | Centralized URL construction from user settings | Good |
 
+## Current Milestone: v1.1 Micro Interactions
+
+**Goal:** Add premium-feeling micro interactions — animated page transitions, tab slides, and search filtering animations.
+
+**Target features:**
+- Animated page navigation transitions
+- Tab slide transitions with content animate-in on transcript detail
+- Search filter animations (cards fade/move as results change)
+- Fix search flash bug
+
 ---
-*Last updated: 2026-02-10 after v1.0 milestone*
+*Last updated: 2026-02-10 after v1.1 milestone started*

@@ -5,14 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries — record anything, get a searchable, actionable transcript instantly.
-**Current focus:** Between milestones — v1.0 shipped, no active milestone
+**Current focus:** v1.1 Micro Interactions — polish pass with animations and transitions
 
 ## Current Position
 
-Milestone: v1.0 MVP (SHIPPED)
-Next milestone: Not yet defined
-Status: Idle
-Last activity: 2026-02-10 — v1.0 milestone archived
+Milestone: v1.1 Micro Interactions
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-10 — Milestone v1.1 started
 
 ## Performance Metrics
 
@@ -46,6 +47,6 @@ All v1.0 decisions archived in `.planning/milestones/v1.0-ROADMAP.md` and `.plan
 
 ## Session Continuity
 
-Last session: 2026-02-10 — v1.0 milestone completed and archived
-Stopped at: Milestone complete. Ready for next milestone.
+Last session: 2026-02-10 — Milestone v1.1 started
+Stopped at: Defining requirements
 Resume file: None
