@@ -9,9 +9,12 @@ export default defineSchema({
     title: v.string(),
     status: v.union(
       v.literal("recording"),
+      v.literal("processing"),
       v.literal("completed"),
       v.literal("error")
     ),
+    source: v.optional(v.union(v.literal("recording"), v.literal("upload"))),
+    errorMessage: v.optional(v.string()),
     duration: v.optional(v.number()),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),

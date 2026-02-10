@@ -14,6 +14,27 @@ export const create = mutation({
       userId,
       title: args.title,
       status: "recording",
+      source: "recording",
+      createdAt: Date.now(),
+    });
+
+    return transcriptId;
+  },
+});
+
+export const createFromUpload = mutation({
+  args: { title: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const transcriptId = await ctx.db.insert("transcripts", {
+      userId,
+      title: args.title,
+      status: "processing",
+      source: "upload",
       createdAt: Date.now(),
     });
 
@@ -230,5 +251,59 @@ export const getSpeakerLabels = query({
       .collect();
 
     return labels;
+  },
+});
+
+export const setStatus = internalMutation({
+  args: {
+    transcriptId: v.id("transcripts"),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const transcript = await ctx.db.get(args.transcriptId);
+    if (transcript === null) {
+      throw new Error("Transcript not found");
+    }
+
+    await ctx.db.patch(args.transcriptId, {
+      status: args.status as "recording" | "processing" | "completed" | "error",
+    });
+  },
+});
+
+export const completeTranscript = internalMutation({
+  args: {
+    transcriptId: v.id("transcripts"),
+    duration: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const transcript = await ctx.db.get(args.transcriptId);
+    if (transcript === null) {
+      throw new Error("Transcript not found");
+    }
+
+    await ctx.db.patch(args.transcriptId, {
+      status: "completed",
+      completedAt: Date.now(),
+      duration: args.duration,
+    });
+  },
+});
+
+export const markError = internalMutation({
+  args: {
+    transcriptId: v.id("transcripts"),
+    error: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const transcript = await ctx.db.get(args.transcriptId);
+    if (transcript === null) {
+      throw new Error("Transcript not found");
+    }
+
+    await ctx.db.patch(args.transcriptId, {
+      status: "error",
+      errorMessage: args.error,
+    });
   },
 });
