@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries — record anything, get a searchable, actionable transcript instantly.
-**Current focus:** Phase 4 - AI Intelligence & Settings
+**Current focus:** Project complete
 
 ## Current Position
 
 Phase: 4 of 4 (AI Intelligence & Settings)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-10 — Completed 04-02-PLAN.md
+Plan: 3 of 3 in current phase
+Status: Complete
+Last activity: 2026-02-10 — Completed 04-03-PLAN.md
 
-Progress: [██████████░] 95%
+Progress: [███████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 2 min
 - Total execution time: 0.4 hours
 
@@ -30,12 +30,12 @@ Progress: [██████████░] 95%
 | 01-foundation-real-time-transcription | 3 | 9 min | 3 min |
 | 02-file-upload-batch-processing | 2 | 4 min | 2 min |
 | 03-library-organization | 3 | 7 min | 2 min |
-| 04-ai-intelligence-settings | 2 | 3 min | 1.5 min |
+| 04-ai-intelligence-settings | 3 | 6 min | 2 min |
 
 **Recent Trend:**
-- Plan 03-03 completed in 2 min (Transcript detail export & tags)
 - Plan 04-01 completed in 2 min (Schema + AI summary action + settings CRUD)
 - Plan 04-02 completed in 1 min (AI Summary component wiring)
+- Plan 04-03 completed in 3 min (Settings page + Deepgram URL wiring)
 
 *Updated after each plan completion*
 
@@ -73,6 +73,9 @@ Recent decisions affecting current work:
 | 04-01 | claude-haiku-4-5 for summarization | Cost-effective ($1/$5 per M tokens), fast, sufficient quality | AI summary generation via Convex action |
 | 04-02 | Removed topics section from AI summary | CONTEXT.md specifies only overview, key points, action items | Simpler, focused 3-section AI summary display |
 | 04-02 | Map "Unassigned" to undefined in UI | Cleaner display - no assignee label for unassigned items | Assignee line only shows when speaker is identified |
+| 04-03 | Language picker as bottom sheet modal | Mobile-first design, searchable, consistent with app patterns | 30 Deepgram Nova-2 languages available |
+| 04-03 | buildDeepgramUrl helper function | Centralizes URL construction, avoids duplication | Both transcribeChunk and transcribeFile use same builder |
+| 04-03 | getTranscriptOwner internalQuery for userId lookup | Actions can't query DB directly, need userId for settings | Clean data access chain: transcriptId -> userId -> settings |
 
 ### Pending Todos
 
@@ -96,6 +99,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-10 — Completed 04-02-PLAN.md
-Stopped at: Plan 04-02 complete, ready for 04-03
+Last session: 2026-02-10 — Completed 04-03-PLAN.md
+Stopped at: All phases complete. Project feature-complete per roadmap.
 Resume file: None
