@@ -66,10 +66,12 @@ Plans:
   4. User can star/bookmark transcripts and quickly access them via Starred tab
   5. User can add custom tags to transcripts (Sprint Review, Podcast, etc.)
   6. User can export individual transcripts as PDF or TXT files
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD during phase planning
+- [ ] 03-01-PLAN.md -- Schema extensions (isStarred, fullText, search indexes, tags/transcriptTags tables) + backend queries/mutations
+- [ ] 03-02-PLAN.md -- Library page overhaul: search bar, filter tabs, star toggle, enhanced transcript cards, empty states
+- [ ] 03-03-PLAN.md -- Transcript detail: export menu (PDF/TXT), tag picker modal, tag chips
 
 ### Phase 4: AI Intelligence & Settings
 **Goal**: Users get AI-generated summaries and can customize transcription settings
@@ -95,5 +97,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Real-Time Transcription | 3/3 | Complete | 2026-02-10 |
 | 2. File Upload & Batch Processing | 2/2 | Complete | 2026-02-10 |
-| 3. Library & Organization | 0/TBD | Not started | - |
+| 3. Library & Organization | 0/3 | Not started | - |
 | 4. AI Intelligence & Settings | 0/TBD | Not started | - |
