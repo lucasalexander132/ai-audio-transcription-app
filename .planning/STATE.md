@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries — record anything, get a searchable, actionable transcript instantly.
-**Current focus:** Phase 2 - File Upload & Batch Processing
+**Current focus:** Phase 3 - Library & Organization
 
 ## Current Position
 
-Phase: 2 of 4 (File Upload & Batch Processing)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-10 — Completed 02-02-PLAN.md
+Phase: 3 of 4 (Library & Organization)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-10 — Completed 03-01-PLAN.md
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 3 min
+- Total plans completed: 6
+- Average duration: 2 min
 - Total execution time: 0.2 hours
 
 **By Phase:**
@@ -29,11 +29,12 @@ Progress: [██████░░░░] 60%
 |-------|-------|-------|----------|
 | 01-foundation-real-time-transcription | 3 | 9 min | 3 min |
 | 02-file-upload-batch-processing | 2 | 4 min | 2 min |
+| 03-library-organization | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Plan 01-03 completed in 2 min (Transcript detail view)
 - Plan 02-01 completed in 2 min (Backend file upload transcription)
 - Plan 02-02 completed in 2 min (File upload UI & record page tabs)
+- Plan 03-01 completed in 2 min (Schema extensions & backend queries)
 
 *Updated after each plan completion*
 
@@ -61,6 +62,9 @@ Recent decisions affecting current work:
 | 02-01 | Set source field on existing create mutation | Backward compatibility with recording transcripts | All transcripts now have source tracking |
 | 02-02 | XMLHttpRequest for upload progress | fetch API lacks upload.onprogress | Reliable progress tracking for file uploads |
 | 02-02 | Fire-and-forget transcribeFile action | Convex subscriptions handle UI updates | Processing spinner auto-transitions to completed transcript |
+| 03-01 | Denormalize fullText at completion time | Convex search indexes require document-level fields | Both completeTranscript and complete mutations build fullText |
+| 03-01 | Max 8 tags per transcript | Middle of 5-10 range from CONTEXT.md | addTagToTranscript enforces limit server-side |
+| 03-01 | Junction table for tags (many-to-many) | Enables tag reuse, rename, query by tag | tags + transcriptTags tables with proper indexes |
 
 ### Pending Todos
 
@@ -76,8 +80,11 @@ Recent decisions affecting current work:
 - ⚠️ Physical iOS device testing still required (simulators insufficient for audio validation)
 - ⚠️ Deepgram API key must be set via: npx convex env set DEEPGRAM_API_KEY <key>
 
+**Phase 3 considerations:**
+- ⚠️ Existing transcripts do not have fullText populated; search will only find newly completed transcripts unless backfilled
+
 ## Session Continuity
 
-Last session: 2026-02-10 — Completed Phase 2 (File Upload & Batch Processing)
-Stopped at: Phase 2 complete, proceeding to verification
+Last session: 2026-02-10 — Completed 03-01-PLAN.md
+Stopped at: Plan 03-01 complete, ready for 03-02
 Resume file: None
