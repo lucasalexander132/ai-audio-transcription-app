@@ -1,11 +1,15 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { AudioPlayer } from "@/app/components/audio/audio-player";
 import { TranscriptView } from "@/app/components/audio/transcript-view";
+import { AiSummary } from "@/app/components/audio/ai-summary";
+import { ExportMenu } from "@/app/components/export/export-menu";
+import { TagChips } from "@/app/components/library/tag-chips";
+import { TagPickerModal } from "@/app/components/library/tag-picker-modal";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -350,13 +354,6 @@ export default function TranscriptDetailPage({
     day: "numeric",
   });
 
-  // Format duration as MM:SS
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   // Count unique speakers from words
   const speakerCount = words
     ? new Set(words.map((w) => w.speaker ?? 0)).size
@@ -364,6 +361,114 @@ export default function TranscriptDetailPage({
 
   // Determine title: use transcript title, or fallback to "Recording - {date}"
   const displayTitle = transcript.title || `Recording - ${createdDate}`;
+
+  return (
+    <TranscriptDetailContent
+      displayTitle={displayTitle}
+      createdDate={createdDate}
+      duration={transcript.duration}
+      speakerCount={speakerCount}
+      audioUrl={audioUrl}
+      transcriptId={transcriptId}
+    />
+  );
+}
+
+function TranscriptDetailContent({
+  displayTitle,
+  createdDate,
+  duration,
+  speakerCount,
+  audioUrl,
+  transcriptId,
+}: {
+  displayTitle: string;
+  createdDate: string;
+  duration?: number;
+  speakerCount?: number;
+  audioUrl: string | null | undefined;
+  transcriptId: Id<"transcripts">;
+}) {
+  const [activeTab, setActiveTab] = useState<"transcript" | "summary">("transcript");
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const router = useRouter();
+  const adjacentIds = useQuery(api.transcripts.getAdjacentIds, { id: transcriptId });
+
+  // Data for export and tags
+  const transcriptTags = useQuery(api.tags.getTranscriptTags, { transcriptId });
+  const speakerLabels = useQuery(api.transcripts.getSpeakerLabels, { transcriptId });
+  const words = useQuery(api.transcripts.getWords, { transcriptId });
+  const removeTag = useMutation(api.tags.removeTagFromTranscript);
+
+  // Format duration as MM:SS
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Build segments from words + speaker labels for export
+  const exportData = useMemo(() => {
+    if (!words || words.length === 0) {
+      return { segments: [], speakers: [], tags: [] };
+    }
+
+    // Build speaker label map
+    const labelMap = new Map<number, string>();
+    if (speakerLabels) {
+      for (const sl of speakerLabels) {
+        labelMap.set(sl.speakerNumber, sl.label);
+      }
+    }
+
+    // Group consecutive words by speaker into segments
+    const segments: { speaker: string; timestamp: string; text: string }[] = [];
+    let currentSpeaker: number | undefined;
+    let currentText: string[] = [];
+    let currentStartTime = 0;
+
+    for (const word of words) {
+      const speaker = word.speaker ?? 0;
+      if (speaker !== currentSpeaker) {
+        if (currentText.length > 0) {
+          const mins = Math.floor(currentStartTime / 60);
+          const secs = Math.floor(currentStartTime % 60);
+          const timestamp = `${mins}:${secs.toString().padStart(2, "0")}`;
+          const speakerName = labelMap.get(currentSpeaker!) || `Speaker ${(currentSpeaker ?? 0) + 1}`;
+          segments.push({ speaker: speakerName, timestamp, text: currentText.join(" ") });
+        }
+        currentSpeaker = speaker;
+        currentText = [word.text];
+        currentStartTime = word.startTime;
+      } else {
+        currentText.push(word.text);
+      }
+    }
+    // Push last segment
+    if (currentText.length > 0) {
+      const mins = Math.floor(currentStartTime / 60);
+      const secs = Math.floor(currentStartTime % 60);
+      const timestamp = `${mins}:${secs.toString().padStart(2, "0")}`;
+      const speakerName = labelMap.get(currentSpeaker!) || `Speaker ${(currentSpeaker ?? 0) + 1}`;
+      segments.push({ speaker: speakerName, timestamp, text: currentText.join(" ") });
+    }
+
+    // Unique speakers
+    const speakers = Array.from(new Set(segments.map((s) => s.speaker)));
+
+    // Tag names
+    const tags = (transcriptTags ?? []).map((t) => t.tagName);
+
+    return { segments, speakers, tags };
+  }, [words, speakerLabels, transcriptTags]);
+
+  // Format date for export filename (YYYY-MM-DD)
+  const exportDate = useMemo(() => {
+    // createdDate is like "Feb 10, 2026" - parse to YYYY-MM-DD
+    const d = new Date(createdDate);
+    if (isNaN(d.getTime())) return new Date().toISOString().split("T")[0];
+    return d.toISOString().split("T")[0];
+  }, [createdDate]);
 
   return (
     <div
@@ -374,33 +479,43 @@ export default function TranscriptDetailPage({
         style={{
           paddingTop: 16,
           paddingRight: 20,
-          paddingBottom: 120,
+          paddingBottom: 180,
           paddingLeft: 20,
         }}
       >
         <div className="mx-auto max-w-3xl flex flex-col" style={{ gap: 16 }}>
-          {/* Back button */}
-          <Link
-            href="/transcripts"
-            className="inline-flex items-center self-start"
-            style={{ gap: 6, color: "#D2691E", fontSize: 14, fontWeight: 500 }}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              style={{ width: 18, height: 18 }}
+          {/* Header row: Back button + Export menu */}
+          <div className="flex items-center justify-between">
+            <Link
+              href="/transcripts"
+              className="inline-flex items-center"
+              style={{ gap: 6, color: "#1A1A1A", fontSize: 16, fontWeight: 500 }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 19.5L8.25 12l7.5-7.5"
-              />
-            </svg>
-            Back to Transcripts
-          </Link>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                style={{ width: 22, height: 22 }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 19.5L8.25 12l7.5-7.5"
+                />
+              </svg>
+              Back
+            </Link>
+            <ExportMenu
+              title={displayTitle}
+              date={exportDate}
+              duration={duration !== undefined ? formatDuration(duration) : "0:00"}
+              speakers={exportData.speakers}
+              tags={exportData.tags}
+              segments={exportData.segments}
+            />
+          </div>
 
           {/* Title */}
           <h1
@@ -416,83 +531,164 @@ export default function TranscriptDetailPage({
             {displayTitle}
           </h1>
 
-          {/* Metadata: duration, date, number of speakers */}
-          <div className="flex flex-wrap items-center" style={{ gap: 16, marginTop: -4 }}>
-            {/* Date */}
-            <div className="flex items-center" style={{ gap: 5 }}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="#8B7E74"
-                style={{ width: 15, height: 15 }}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
+          {/* Metadata row: date · duration · speakers */}
+          <div className="flex flex-wrap items-center" style={{ gap: 12, marginTop: -4 }}>
+            <span style={{ fontSize: 13, color: "#8B7E74" }}>{createdDate}</span>
+            {duration !== undefined && (
+              <>
+                <span
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: "#B5A99A",
+                    display: "inline-block",
+                  }}
                 />
-              </svg>
-              <span style={{ fontSize: 13, color: "#8B7E74" }}>{createdDate}</span>
-            </div>
-
-            {/* Duration */}
-            {transcript.duration !== undefined && (
-              <div className="flex items-center" style={{ gap: 5 }}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="#8B7E74"
-                  style={{ width: 15, height: 15 }}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
                 <span style={{ fontSize: 13, color: "#8B7E74" }}>
-                  {formatDuration(transcript.duration)}
+                  {formatDuration(duration)}
                 </span>
-              </div>
+              </>
             )}
-
-            {/* Speaker count */}
             {speakerCount !== undefined && speakerCount > 0 && (
-              <div className="flex items-center" style={{ gap: 5 }}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={1.5}
-                  stroke="#8B7E74"
-                  style={{ width: 15, height: 15 }}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-                  />
-                </svg>
+              <>
+                <span
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: "#B5A99A",
+                    display: "inline-block",
+                  }}
+                />
                 <span style={{ fontSize: 13, color: "#8B7E74" }}>
                   {speakerCount} {speakerCount === 1 ? "speaker" : "speakers"}
                 </span>
-              </div>
+              </>
             )}
           </div>
 
-          {/* Audio Player - render once URL query resolves */}
-          {audioUrl !== undefined && (
-            <AudioPlayer audioUrl={audioUrl} fallbackDuration={transcript.duration} />
-          )}
+          {/* Tags section */}
+          <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: -4 }}>
+            <TagChips
+              tags={transcriptTags ?? []}
+              onRemove={(tagId) => removeTag({ transcriptId, tagId: tagId as Id<"tags"> })}
+            />
+            <button
+              onClick={() => setShowTagPicker(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                backgroundColor: "#F5EDE4",
+                color: "#8B7E74",
+                border: "none",
+                borderRadius: 9999,
+                padding: "4px 10px",
+                fontSize: 11,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              >
+                <line x1="5" y1="1" x2="5" y2="9" />
+                <line x1="1" y1="5" x2="9" y2="5" />
+              </svg>
+              Add Tag
+            </button>
+          </div>
 
-          {/* Transcript View - scrollable, takes remaining space */}
-          <TranscriptView transcriptId={transcriptId} />
+          {/* Tab Switcher */}
+          <div className="flex" style={{ marginTop: 4 }}>
+            <button
+              onClick={() => setActiveTab("transcript")}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                backgroundColor: "transparent",
+                border: "none",
+                borderBottom: activeTab === "transcript"
+                  ? "2px solid #D4622B"
+                  : "1px solid #EDE6DD",
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 14,
+                fontWeight: activeTab === "transcript" ? 600 : 500,
+                color: activeTab === "transcript" ? "#D4622B" : "#B5A99A",
+              }}
+            >
+              Transcript
+            </button>
+            <button
+              onClick={() => setActiveTab("summary")}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                backgroundColor: "transparent",
+                border: "none",
+                borderBottom: activeTab === "summary"
+                  ? "2px solid #D4622B"
+                  : "1px solid #EDE6DD",
+                cursor: "pointer",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 14,
+                fontWeight: activeTab === "summary" ? 600 : 500,
+                color: activeTab === "summary" ? "#D4622B" : "#B5A99A",
+              }}
+            >
+              AI Summary
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === "transcript" ? (
+            <TranscriptView transcriptId={transcriptId} />
+          ) : (
+            <AiSummary transcriptId={transcriptId} />
+          )}
         </div>
       </div>
+
+      {/* Tag Picker Modal */}
+      <TagPickerModal
+        transcriptId={transcriptId}
+        currentTags={transcriptTags ?? []}
+        isOpen={showTagPicker}
+        onClose={() => setShowTagPicker(false)}
+      />
+
+      {/* Fixed bottom audio player */}
+      {audioUrl !== undefined && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#FFFFFF",
+            borderTop: "1px solid #EDE6DD",
+            padding: "16px 24px calc(20px + env(safe-area-inset-bottom))",
+            zIndex: 40,
+          }}
+        >
+          <div className="mx-auto max-w-3xl">
+            <AudioPlayer
+              audioUrl={audioUrl}
+              fallbackDuration={duration}
+              onSkipBack={adjacentIds?.prevId ? () => router.push(`/transcripts/${adjacentIds.prevId}`) : undefined}
+              onSkipForward={adjacentIds?.nextId ? () => router.push(`/transcripts/${adjacentIds.nextId}`) : undefined}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
