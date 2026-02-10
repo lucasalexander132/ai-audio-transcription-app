@@ -6,9 +6,10 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useDebounce } from "@/app/lib/hooks/use-debounce";
 import { useStableQuery } from "@/app/lib/hooks/use-stable-query";
+import { AnimatePresence, m } from "motion/react";
 import { SearchBar } from "@/app/components/library/search-bar";
 import { FilterTabs } from "@/app/components/library/filter-tabs";
-import { TranscriptCard } from "@/app/components/library/transcript-card";
+import { AnimatedCardList } from "@/app/components/library/animated-card-list";
 
 const TABS = ["All", "Recent", "Starred", "Meetings"];
 
@@ -241,43 +242,57 @@ export default function TranscriptsPage() {
       <div style={{ height: 20 }} />
 
       {/* Content */}
-      {isLoading ? (
-        /* Loading skeleton */
-        <div className="flex flex-col" style={{ gap: 12, padding: "0 24px" }}>
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="animate-pulse"
-              style={{
-                height: 88,
-                borderRadius: 16,
-                backgroundColor: "#EDE6DD",
-              }}
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <m.div
+            key="skeleton"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            {/* Loading skeleton */}
+            <div className="flex flex-col" style={{ gap: 12, padding: "0 24px" }}>
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="animate-pulse"
+                  style={{
+                    height: 88,
+                    borderRadius: 16,
+                    backgroundColor: "#EDE6DD",
+                  }}
+                />
+              ))}
+            </div>
+          </m.div>
+        ) : displayTranscripts.length === 0 ? (
+          <m.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <EmptyState type={isSearchActive ? "search" : activeTab} />
+          </m.div>
+        ) : (
+          <m.div
+            key="list"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <AnimatedCardList
+              transcripts={displayTranscripts}
+              tagsByTranscript={tagsByTranscript}
+              speakersByTranscript={speakersByTranscript}
+              onCardClick={(id) => router.push(`/transcripts/${id}`)}
             />
-          ))}
-        </div>
-      ) : displayTranscripts.length === 0 ? (
-        /* Empty states */
-        <EmptyState
-          type={isSearchActive ? "search" : activeTab}
-        />
-      ) : (
-        /* Transcript list */
-        <div
-          className="flex flex-col"
-          style={{ gap: 12, padding: "0 24px", paddingBottom: 120 }}
-        >
-          {displayTranscripts.map((transcript) => (
-            <TranscriptCard
-              key={transcript._id}
-              transcript={transcript}
-              tags={tagsByTranscript.get(transcript._id) ?? []}
-              speakers={speakersByTranscript.get(transcript._id) ?? []}
-              onClick={() => router.push(`/transcripts/${transcript._id}`)}
-            />
-          ))}
-        </div>
-      )}
+          </m.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
