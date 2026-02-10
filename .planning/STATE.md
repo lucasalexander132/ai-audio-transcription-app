@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-09)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries — record anything, get a searchable, actionable transcript instantly.
-**Current focus:** Phase 3 - Library & Organization
+**Current focus:** Phase 4 - AI Intelligence & Settings
 
 ## Current Position
 
-Phase: 3 of 4 (Library & Organization)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-10 — Completed 03-03-PLAN.md
+Phase: 4 of 4 (AI Intelligence & Settings)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-10 — Completed 04-01-PLAN.md
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 2 min
-- Total execution time: 0.3 hours
+- Total execution time: 0.4 hours
 
 **By Phase:**
 
@@ -30,11 +30,12 @@ Progress: [█████████░] 89%
 | 01-foundation-real-time-transcription | 3 | 9 min | 3 min |
 | 02-file-upload-batch-processing | 2 | 4 min | 2 min |
 | 03-library-organization | 3 | 7 min | 2 min |
+| 04-ai-intelligence-settings | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Plan 03-01 completed in 2 min (Schema extensions & backend queries)
 - Plan 03-02 completed in 3 min (Library page overhaul)
 - Plan 03-03 completed in 2 min (Transcript detail export & tags)
+- Plan 04-01 completed in 2 min (Schema + AI summary action + settings CRUD)
 
 *Updated after each plan completion*
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 | 03-01 | Junction table for tags (many-to-many) | Enables tag reuse, rename, query by tag | tags + transcriptTags tables with proper indexes |
 | 03-03 | Lazy-load jsPDF via dynamic import() | Avoid ~200KB bundle impact for infrequent export action | First PDF export has slight delay; subsequent exports instant |
 | 03-03 | Web Share API first, anchor download fallback | iOS Safari lacks proper file download | Mobile users get native share, desktop gets direct download |
+| 04-01 | Prompt-based JSON from Claude (no structured outputs) | Simpler than output_config.format; haiku follows instructions well | JSON.parse with error handling in generateSummary action |
+| 04-01 | Speaker-annotated text from words + speakerLabels | fullText lacks speaker markers; needed for action item attribution | Builds "Speaker 1: text\nSpeaker 2: text" format for Claude |
+| 04-01 | claude-haiku-4-5 for summarization | Cost-effective ($1/$5 per M tokens), fast, sufficient quality | AI summary generation via Convex action |
 
 ### Pending Todos
 
@@ -85,8 +89,11 @@ Recent decisions affecting current work:
 **Phase 3 considerations:**
 - ⚠️ Existing transcripts do not have fullText populated; search will only find newly completed transcripts unless backfilled
 
+**Phase 4 considerations:**
+- ⚠️ Anthropic API key must be set via: npx convex env set ANTHROPIC_API_KEY <key>
+
 ## Session Continuity
 
-Last session: 2026-02-10 — Completed 03-03-PLAN.md
-Stopped at: Phase 3 complete, ready for Phase 4
+Last session: 2026-02-10 — Completed 04-01-PLAN.md
+Stopped at: Plan 04-01 complete, ready for 04-02
 Resume file: None
