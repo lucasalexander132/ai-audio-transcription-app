@@ -66,4 +66,25 @@ export default defineSchema({
   })
     .index("by_transcript", ["transcriptId"])
     .index("by_tag", ["tagId"]),
+
+  aiSummaries: defineTable({
+    transcriptId: v.id("transcripts"),
+    userId: v.id("users"),
+    overview: v.string(),
+    keyPoints: v.array(v.string()),
+    actionItems: v.array(
+      v.object({
+        text: v.string(),
+        assignee: v.string(),
+      })
+    ),
+    generatedAt: v.number(),
+    model: v.string(),
+  }).index("by_transcript", ["transcriptId"]),
+
+  userSettings: defineTable({
+    userId: v.id("users"),
+    transcriptionLanguage: v.optional(v.string()),
+    autoPunctuation: v.optional(v.boolean()),
+  }).index("by_userId", ["userId"]),
 });
