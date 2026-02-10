@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Project scaffold, Convex Auth, PWA manifest, FAB navigation, database schema
+- [x] 01-01-PLAN.md -- Project scaffold, Convex Auth, PWA manifest, FAB navigation, database schema
 - [ ] 01-02-PLAN.md -- Audio recording, Deepgram proxy, live waveform, real-time transcription
 - [ ] 01-03-PLAN.md -- Transcript view, audio playback with speed controls, speaker rename
 
@@ -92,7 +92,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Real-Time Transcription | 0/3 | Planned | - |
+| 1. Foundation & Real-Time Transcription | 1/3 | In progress | - |
 | 2. File Upload & Batch Processing | 0/TBD | Not started | - |
 | 3. Library & Organization | 0/TBD | Not started | - |
 | 4. AI Intelligence & Settings | 0/TBD | Not started | - |
