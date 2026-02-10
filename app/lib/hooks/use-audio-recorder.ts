@@ -11,8 +11,10 @@ export function useAudioRecorder() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const detectedMimeTypeRef = useRef<string>("");
+  const wordOffsetRef = useRef<number>(0);
+  const transcribeInFlightRef = useRef<boolean>(false);
 
-  const { status, transcriptId, elapsedSeconds, setStatus, setTranscriptId, setError } =
+  const { status, transcriptId, elapsedSeconds, setStatus, setTranscriptId, setError, resetTimer } =
     useRecordingStore();
 
   const createTranscript = useMutation(api.transcripts.create);
@@ -71,23 +73,40 @@ export function useAudioRecorder() {
 
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
+      wordOffsetRef.current = 0;
+      transcribeInFlightRef.current = false;
 
       recorder.ondataavailable = async (event) => {
         if (event.data.size > 44) {
           // iOS bug check - validate blob size
           chunksRef.current.push(event.data);
 
-          // Send chunk to Deepgram for transcription
+          // Skip if a transcription request is already in flight
+          if (transcribeInFlightRef.current) return;
+          transcribeInFlightRef.current = true;
+
+          // Build complete blob from ALL accumulated chunks
+          // Individual chunks after the first lack valid WebM headers,
+          // but combining all chunks creates a valid audio file
           try {
-            const arrayBuffer = await event.data.arrayBuffer();
-            await transcribeChunk({
+            const completeBlob = new Blob(chunksRef.current, {
+              type: detectedMimeTypeRef.current || "audio/webm",
+            });
+            const arrayBuffer = await completeBlob.arrayBuffer();
+            const result = await transcribeChunk({
               transcriptId: newTranscriptId,
               audioData: arrayBuffer,
               mimeType: detectedMimeTypeRef.current || "audio/webm",
+              wordOffset: wordOffsetRef.current,
             });
+            if (result && typeof result.totalWords === "number") {
+              wordOffsetRef.current = result.totalWords;
+            }
           } catch (error) {
             console.error("Transcription error:", error);
             // Continue recording even if transcription fails
+          } finally {
+            transcribeInFlightRef.current = false;
           }
         }
       };
@@ -134,8 +153,8 @@ export function useAudioRecorder() {
         }
       };
 
-      // Start recording with 2-second chunks
-      recorder.start(2000);
+      // Start recording with 5-second chunks (balances latency vs API calls)
+      recorder.start(5000);
       setStatus("recording");
     } catch (error: any) {
       console.error("Error starting recording:", error);
@@ -188,6 +207,22 @@ export function useAudioRecorder() {
     return null;
   }, [status, mediaStream, transcriptId, setStatus]);
 
+  const discardRecording = useCallback(() => {
+    if (mediaRecorderRef.current && (status === "recording" || status === "paused")) {
+      chunksRef.current = []; // Clear chunks so onstop handler won't save
+      mediaRecorderRef.current.stop();
+
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        setMediaStream(null);
+      }
+
+      setStatus("idle");
+      setTranscriptId(null);
+      resetTimer();
+    }
+  }, [status, mediaStream, setStatus, setTranscriptId, resetTimer]);
+
   // Handle page visibility change - auto-pause on hide
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -220,5 +255,6 @@ export function useAudioRecorder() {
     pauseRecording,
     resumeRecording,
     stopRecording,
+    discardRecording,
   };
 }

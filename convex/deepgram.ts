@@ -7,6 +7,7 @@ export const transcribeChunk = action({
     transcriptId: v.id("transcripts"),
     audioData: v.bytes(),
     mimeType: v.string(),
+    wordOffset: v.number(),
   },
   handler: async (ctx, args) => {
     const apiKey = process.env.DEEPGRAM_API_KEY;
@@ -28,16 +29,19 @@ export const transcribeChunk = action({
 
     if (!response.ok) {
       console.error("Deepgram API error:", response.status, await response.text());
-      return;
+      return { totalWords: args.wordOffset };
     }
 
     const result = await response.json();
     const words = result.results?.channels?.[0]?.alternatives?.[0]?.words || [];
 
-    if (words.length > 0) {
+    // Only append words past the offset (new words not yet stored)
+    const newWords = words.slice(args.wordOffset);
+
+    if (newWords.length > 0) {
       await ctx.runMutation(internal.transcripts.appendWords, {
         transcriptId: args.transcriptId,
-        words: words.map((w: any) => ({
+        words: newWords.map((w: any) => ({
           text: w.word,
           speaker: w.speaker ?? 0,
           startTime: w.start,
@@ -46,5 +50,7 @@ export const transcribeChunk = action({
         })),
       });
     }
+
+    return { totalWords: words.length };
   },
 });
