@@ -44,10 +44,11 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
   1. Typing in the search bar never shows unfiltered results -- the list either holds the previous results or shows filtered results, with no flash of the full list
   2. Users with "reduce motion" enabled in their OS settings see no animations throughout the app (MotionConfig reducedMotion="user" is active)
   3. Motion library is installed and loadable via LazyMotion (verified by dev tools showing async chunk load, not blocking initial bundle)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md -- Fix search flash bug with useStableQuery hook + input-aware search
+- [ ] 05-02-PLAN.md -- Install motion, create MotionProvider, add reduced-motion CSS baseline
 
 #### Phase 06: Search Filtering Animations
 **Goal**: Users see transcript cards animate smoothly in and out as search results change
@@ -98,7 +99,7 @@ Plans:
 | 02. File Upload & Batch Processing | v1.0 | 2/2 | Complete | 2026-02-10 |
 | 03. Library & Organization | v1.0 | 3/3 | Complete | 2026-02-10 |
 | 04. AI Intelligence & Settings | v1.0 | 3/3 | Complete | 2026-02-10 |
-| 05. Foundation + Search Flash Fix | v1.1 | 0/? | Not started | - |
+| 05. Foundation + Search Flash Fix | v1.1 | 0/2 | Not started | - |
 | 06. Search Filtering Animations | v1.1 | 0/? | Not started | - |
 | 07. Tab Slide Transitions | v1.1 | 0/? | Not started | - |
 | 08. Page Transitions | v1.1 | 0/? | Not started | - |
