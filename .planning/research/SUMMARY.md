@@ -1,373 +1,256 @@
 # Project Research Summary
 
-**Project:** AI Audio Transcription PWA
-**Domain:** Real-time audio transcription and meeting notes
-**Researched:** 2026-02-09
+**Project:** AI Audio Transcription PWA -- Milestone v1.1 Micro Interactions
+**Domain:** Animation and micro-interaction patterns for mobile-first Next.js PWA
+**Researched:** 2026-02-10
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This is a real-time audio transcription PWA built with Next.js 16, Convex, Deepgram, and Claude API. The 2026 stack emphasizes mobile-first PWA capabilities, real-time streaming performance, and modern developer experience. The recommended approach uses a **client-orchestrated, server-processed** architecture where browsers manage direct WebSocket connections to Deepgram (via temporary tokens for security) while Convex handles all state management, persistence, and AI summarization.
+Milestone v1.1 adds premium-feeling animations to an existing, fully functional Next.js 15 + Convex PWA. The research confirms a **two-tier animation strategy**: use CSS-only animations (Tailwind transitions + `tailwindcss-animate` plugin) for simple micro-interactions like button press states and tab indicator slides, and use **Motion v12** (formerly Framer Motion) for the complex orchestration work that CSS cannot do -- exit animations on unmount, layout-aware list filtering, and animated page transitions. This approach keeps the bundle impact contained at approximately 28kb of added JS (mostly async-loaded) while delivering the four target features: page transitions, tab slide transitions, search filtering animations, and the search flash bug fix.
 
-The market has matured significantly with clear feature tiers. Table stakes features are well-established (real-time transcription, speaker diarization, AI summaries, action items), and competitive differentiation happens through specialized use cases, mobile-first design, and post-processing capabilities. Your mockups hit all table stakes features and include key differentiators: mobile-first PWA design, file upload flexibility, and clean organization features.
+The recommended build approach is to **fix the search flash bug first** (a logic fix using a `useStableQuery` hook that bridges Convex's undefined-during-reload behavior), then layer animations on top of stable data. The architecture places a `PageTransitionProvider` with a `FrozenRouter` pattern inside the existing `(app)/layout.tsx` to enable route-level exit animations in the App Router, an `AnimatedTabContent` wrapper for directional tab slides, and an `AnimatedTranscriptList` wrapper that uses `AnimatePresence mode="popLayout"` with layout props for smooth card filtering. Critically, existing components like `TranscriptCard` remain unmodified -- animations are applied via wrapper components to avoid conflicts with existing swipe-to-delete transforms.
 
-**Critical risks center on iOS Safari compatibility issues** (audio format incompatibility, PWA recording bugs, IndexedDB eviction), WebSocket reliability (timeout/reconnection handling), and real-world accuracy degradation (background noise, multiple speakers). These are mitigable through careful testing on physical iOS devices, robust reconnection logic with audio buffering, and setting realistic user expectations about optimal recording conditions.
+The primary risks are: (1) page transitions depend on an internal Next.js API (`LayoutRouterContext`) that could break on version updates -- mitigated by pinning the Next.js version and wrapping in a try/catch with graceful degradation; (2) iOS PWA standalone mode runs animations at 30-40fps instead of 60fps -- mitigated by budgeting for lower frame rates, using short durations (200-250ms), and preferring opacity fades over position slides; (3) Convex real-time subscriptions can interrupt mid-animation with re-renders -- mitigated by `useStableQuery` and `React.memo` isolation on animated card wrappers. All animations must respect `prefers-reduced-motion` from day one using Motion's `MotionConfig reducedMotion="user"` wrapper.
 
 ## Key Findings
 
-### Recommended Stack
+### Recommended Stack Additions
 
-The 2026 stack leverages Next.js 16's production-ready Turbopack and React Compiler, Convex's automatic real-time subscriptions, Deepgram's streaming transcription API, and Claude for AI-powered summaries. This combination eliminates the need for separate API layers, manual WebSocket management, and complex state synchronization.
+Three new dependencies are needed, adding roughly 28kb of JS to the existing bundle.
 
 **Core technologies:**
 
-- **Next.js 16.1.6+**: React framework with App Router — latest stable with Turbopack by default, streaming-first architecture ideal for real-time transcription UI
-- **React 19.2**: UI library — ships with Next.js 16, includes React Compiler optimizations for performance
-- **Convex 1.31.7+**: Real-time backend + database — automatic WebSocket subscriptions, built-in file storage, native real-time reactivity eliminates polling overhead
-- **Deepgram SDK 4.11.3+**: Streaming speech-to-text — industry-leading accuracy (<300ms latency), native WebSocket streaming, built-in speaker diarization
-- **@anthropic-ai/sdk**: Claude API integration — generate summaries/key points/action items from transcripts with streaming response support
-- **Zustand 5.0.11+**: Client state management — lightweight (3KB), minimal boilerplate for transient UI state (recording status, audio levels)
-- **Tailwind CSS 4.x + shadcn/ui**: Styling — mobile-first responsive design, accessible components, copy-paste model (no dependency bloat)
-- **@serwist/next 9.2.3+**: PWA service worker — modern next-pwa successor, Next.js 16 compatible (optional for MVP; Next.js has built-in manifest support)
-- **MediaRecorder API**: Native browser audio recording — zero dependencies, widely supported, produces formats Deepgram accepts directly
+- **`tailwindcss-animate` v1.0.7** (dev dependency, ~3kb CSS): CSS-only enter/exit animation utilities compatible with Tailwind v3.4.1. Provides `animate-in`, `fade-in`, `slide-in-from-*` classes used by shadcn/ui. Covers button feedback, tab indicator slides, toast appearances, and simple fades.
+- **`motion` v12.34.0** (~4.6kb initial + ~15kb async via LazyMotion/domAnimation): The `motion` npm package (NOT `framer-motion`) with imports from `"motion/react"` (NOT `"framer-motion"`). Provides `AnimatePresence` for exit animations, `layout` prop for FLIP-style repositioning, and variant-based stagger. Required for anything involving unmount animations or coordinated list transitions. React 19 compatible.
+- **`next-transition-router`** (optional, <8kb, beta): Evaluated but **not recommended** for the primary approach. The FrozenRouter + AnimatePresence pattern achieves the same result in ~50 lines with no additional dependency. Reserve as a fallback if FrozenRouter proves unstable.
 
-**Key architectural decision:** Use native MediaRecorder API instead of AudioWorklet. Deepgram accepts WebM/Opus directly, so AudioWorklet adds complexity with no benefit for this use case.
+**Key version constraint:** The project uses Tailwind v3.4.1, NOT v4. Use `tailwindcss-animate` (v3 compatible), NOT `tw-animate-css` (v4 only). The project uses Next.js 15.5.12 with React 19. Use `motion` (v12+), NOT `framer-motion` (frozen at v11, React 18 only).
 
 ### Expected Features
 
-**Must have (table stakes):**
+**Must ship (table stakes for a "polished" PWA):**
 
-- Real-time transcription — 90%+ accuracy expected, core value proposition
-- Speaker diarization — multi-speaker scenarios are the norm, expect "Speaker 1", "Speaker 2" labeling
-- Audio playback with transcript sync — users need to verify/correct, expect tap-to-seek
-- Basic AI summary — manual summarization is outdated, users expect auto-generated overview
-- Action item extraction — meetings without follow-up tasks are rare, automatic detection saves time
-- File upload/import — not all content is recorded live, need to transcribe existing audio
-- Basic search — users need to find past transcripts, baseline expectation
-- Export transcript — users need to share/save transcripts outside the app
-- Multiple languages — global user base expects native language support
-- Mobile recording — in-person meetings happen away from desks, PWA is critical
-- Accuracy 90%+ — below 90% requires too much manual correction to be useful
+- Fix search flash bug -- logic bug where debounce gap shows unfiltered list; must fix BEFORE any animation work
+- `prefers-reduced-motion` support -- foundation for all animation work; ~35% of adults 40+ have vestibular sensitivity
+- Touch press states on interactive elements -- CSS-only, 30 minutes of work, makes every button feel alive
+- Tab content slide transitions -- medium complexity, high perceived value on transcript detail page
+- Search/filter list animations -- cards fading/repositioning as results change eliminates jarring re-renders
 
-**Should have (competitive differentiators):**
+**Should ship (differentiators):**
 
-- **PWA/Mobile-first** — no app store friction, works across devices, offline capable (your competitive advantage)
-- **Live waveform visualization** — visual feedback during recording, modern UX expectation
-- **Starred/favorites** — quick access to important transcripts (present in mockups)
-- **Tags/categorization** — organize transcripts beyond chronological (present in mockups)
-- **File upload + live recording** — flexibility other tools lack (your advantage)
-- Speaker name editing — relabel "Speaker 1" to actual names (missing in mockups)
-- Playback speed control — review long recordings faster (likely present)
-- Cloud sync — access transcripts across devices (using Convex)
+- Animated page transitions -- the single biggest "premium feel" upgrade; slide-and-fade between routes mimics iOS navigation stack
+- Active tab indicator animation -- `layoutId`-based sliding underline, small touch that adds polish
+- Search bar expand/collapse animation -- eliminates the hard-cut on search toggle
 
-**Defer (v2+):**
+**Defer to post-v1.1:**
 
-- Offline transcription — requires on-device ML models, very high complexity, privacy benefit but not MVP
-- Real-time collaborative editing — needs CRDT/OT for multi-user editing, high complexity
-- Text-based audio editing — requires audio manipulation like Descript, very high complexity
-- Semantic search — needs vector embeddings, different from full-text search
-- Video transcription — adds file size/storage complexity
-- Sentiment analysis — nice-to-have, not core to transcription use case
-- Translation — separate feature from transcription, adds language complexity
-- Auto-chapters — improves long transcript UX, add after validating usage patterns
+- Gesture-based tab swiping (high complexity, low incremental value over tap transitions)
+- Shared element / hero transitions (requires View Transitions API which is experimental in Next.js 15)
+- Pull-to-refresh animation (browser default is acceptable)
+- Haptic feedback (not supported on iOS Safari)
+- Scroll-linked header compression (nice polish, not core to animation milestone)
+- FAB menu spring animation (lower priority, existing CSS keyframes are adequate)
 
 ### Architecture Approach
 
-The architecture follows a **client-orchestrated, server-processed** pattern where browsers manage direct WebSocket connections to external services while Convex handles state management, persistence, and AI processing. This achieves sub-300ms transcription latency through direct browser-to-Deepgram streaming while maintaining security through temporary token authentication.
+The animation layer integrates at three levels without modifying any existing component internals. A `PageTransitionProvider` wraps `{children}` in the `(app)/layout.tsx`, using `AnimatePresence` keyed on `useSelectedLayoutSegment()` with a `FrozenRouter` that freezes the router context during exit animations. Inside individual pages, `AnimatedTabContent` wraps tab panels with directional slide animations, and `AnimatedTranscriptList` wraps the card list with `AnimatePresence mode="popLayout"` and layout props for smooth repositioning. The FAB menu, TranscriptCard internals, FilterTabs, AudioPlayer, and root layout remain entirely unchanged.
 
-**Major components:**
+**New components (4 files):**
 
-1. **AudioRecorder (Browser)** — captures mic input via MediaRecorder, chunks into 250ms segments, streams directly to Deepgram WebSocket using temporary tokens from Convex
-2. **DeepgramClient (Browser)** — manages WebSocket lifecycle, handles token refresh, implements KeepAlive messages to prevent timeout, emits transcript events
-3. **Convex Mutations** — transactional database writes for saving words, sessions, summaries, associating files with sessions (append-only pattern prevents transaction conflicts)
-4. **Convex Queries** — real-time subscriptions for transcript display, session lists, search/filter (automatic updates when database changes)
-5. **Convex Actions** — external API calls for Claude summarization, Deepgram pre-recorded transcription (for file uploads), temporary token generation
-6. **Convex Storage** — stores uploaded audio files, generates upload URLs, serves audio for playback
+1. **PageTransitionProvider** (`app/components/transitions/page-transition-provider.tsx`) -- FrozenRouter + AnimatePresence for route-level enter/exit animations
+2. **AnimatedTabContent** (`app/components/transitions/animated-tab-content.tsx`) -- direction-aware slide/crossfade for tab switching
+3. **AnimatedTranscriptList** (`app/components/library/animated-transcript-list.tsx`) -- AnimatePresence + layout prop list wrapper; wraps TranscriptCard without modifying it
+4. **useStableQuery** (`app/lib/hooks/use-stable-query.ts`) -- holds previous Convex query result during loading to prevent flash-of-undefined
 
-**Key pattern:** Browser → Deepgram (direct WebSocket) for minimal latency, with security via temporary tokens (30-second TTL). All processing and persistence happens in Convex. Mutations use append-only pattern (create new word documents instead of updating transcript document) to avoid transaction conflicts during high-frequency streaming.
+**Modified components (4 files, minimal changes):**
 
-**Data flow for real-time recording:**
-```
-User speaks → MediaRecorder (250ms chunks) → Deepgram WebSocket
-→ Transcript JSON → Convex mutation (saveWord) → Database
-→ useQuery subscription → UI updates (400-700ms total latency)
-```
+1. `app/(app)/layout.tsx` -- wrap `{children}` with `PageTransitionProvider`
+2. `app/(app)/transcripts/page.tsx` -- use `useStableQuery` for search, use `AnimatedTranscriptList`
+3. `app/(app)/transcripts/[id]/page.tsx` -- wrap tab content with `AnimatedTabContent`
+4. `app/(app)/record/page.tsx` -- wrap tab content with `AnimatedTabContent`
 
 ### Critical Pitfalls
 
-Based on comprehensive research, these are the top pitfalls that will cause rewrites or major issues:
+1. **AnimatePresence exit animations silently fail in App Router** -- The App Router unmounts pages immediately on navigation, so exit animations never play unless you use the FrozenRouter pattern (freezes `LayoutRouterContext` during exit). This relies on an internal Next.js API. **Prevent by:** using FrozenRouter with try/catch degradation, pinning Next.js version, adding CI test for the import path.
 
-1. **iOS Safari Audio Format Incompatibility** — MediaRecorder outputs different formats on iOS Safari vs. Chrome/Android. Deepgram accepts WebM/Opus, but must test format compatibility with `MediaRecorder.isTypeSupported()` and handle iOS's limited codec support. Test on physical iOS devices, not just simulators. **Prevention:** Detect supported formats in order of preference, verify entire pipeline accepts chosen format.
+2. **Wrong package: `framer-motion` does not work with React 19** -- The old `framer-motion` package is frozen at v11 (React 18 only). Must install `motion` and import from `"motion/react"`. **Prevent by:** installing `motion` (not `framer-motion`), verifying import paths in code review.
 
-2. **Deepgram WebSocket Timeout (NET-0001 Error)** — Deepgram closes connections after 10 seconds of silence. Must implement KeepAlive messages every 5 seconds as text WebSocket frames to prevent disconnection during natural conversation pauses. **Prevention:** Send `{ type: 'KeepAlive' }` every 5 seconds while connection is open.
+3. **Convex subscriptions interrupt mid-animation** -- `useQuery` returns `undefined` between parameter changes, causing flash-of-undefined that the animation system amplifies rather than hides. **Prevent by:** using `useStableQuery` hook to bridge loading gaps, wrapping animated cards in `React.memo` with custom comparator.
 
-3. **iOS PWA Audio Recording 44-Byte Bug** — In PWA standalone mode on iOS, audio recording silently fails, saving only a 44-byte empty WAV header. This is a critical WebKit bug. **Prevention:** Validate recorded blob size >1KB before uploading, consider browser-only mode for iOS if unfixable, test extensively on physical devices.
+4. **Search flash bug must be fixed BEFORE adding animations** -- The existing debounce timing bug causes unfiltered results to briefly appear. Adding animations to this broken flow makes it dramatically worse (animated flash is more distracting than instant flash). **Prevent by:** fixing the bug as the first task in the milestone.
 
-4. **WebSocket Reconnection Audio Loss** — When connections drop (common on mobile), 2-5 seconds of audio is lost during reconnect window. **Prevention:** Buffer last 5 seconds of audio, replay on reconnect with exponential backoff (1s, 2s, 4s, 8s, 20s max).
-
-5. **iOS Safari IndexedDB Data Eviction** — IndexedDB storage is silently deleted after 7 days if PWA isn't used. **Prevention:** Use Convex as source of truth (not IndexedDB), sync immediately not "eventually", show sync status UI ("Synced to cloud ✓").
-
-6. **Real-Time Transcript DOM Thrashing** — Rendering each word/token as it arrives (10-50 DOM updates/sec) freezes UI. **Prevention:** Batch updates (buffer 100-250ms of tokens), use virtual scrolling for long transcripts, memoize components with React.memo().
-
-7. **Speaker Diarization Accuracy Collapse** — Works great with 2 speakers (96-98% accuracy) but degrades with 3+ speakers or background noise (85-90%). **Prevention:** Set user expectations, provide manual speaker label editing in UI.
-
-8. **Mobile Browser Background Tab Suspension** — Audio capture stops when user switches tabs or locks phone. **Prevention:** Detect visibility change and warn user, consider Wake Lock API (limited support), provide clear UI indicator.
+5. **iOS PWA standalone mode runs at 30-40fps** -- The standalone WebKit process has lower GPU priority than Safari. Animations that look smooth in Safari testing feel sluggish when launched from home screen. **Prevent by:** testing in standalone mode from day one, budgeting 40fps (not 60fps), preferring opacity fades over position slides, keeping durations at 200-250ms.
 
 ## Implications for Roadmap
 
-Based on research dependencies, feature complexity, and pitfall mitigation strategies, here's the recommended phase structure:
+Based on combined research, the milestone breaks naturally into 4 phases with clear dependency ordering. The total scope is modest -- 4 new files, 4 modified files, 3 npm packages.
 
-### Phase 1: Core Real-Time Recording & Transcription (Foundation)
+### Phase 1: Foundation + Search Flash Fix
 
-**Rationale:** Establishes core value proposition with minimal dependencies. Tests Convex reactivity and Deepgram streaming together. Must validate iOS compatibility and WebSocket reliability before building on top.
-
-**Delivers:**
-- Working real-time transcription from microphone
-- Live transcript display with speaker diarization
-- Session management (create, store, list)
-- Basic audio playback
-
-**Addresses (table stakes features):**
-- Real-time transcription (MediaRecorder → Deepgram)
-- Speaker diarization (Deepgram built-in)
-- Cloud storage (Convex for transcripts)
-- Mobile recording (PWA setup)
-- Audio playback (HTML5 audio)
-
-**Avoids (critical pitfalls):**
-- iOS Safari format incompatibility (test MediaRecorder.isTypeSupported())
-- Deepgram WebSocket timeout (implement KeepAlive from day 1)
-- getUserMedia permission UX (never call on load, provide contextual explanation)
-
-**Stack elements used:**
-- Next.js 16 (App Router, client components)
-- Convex (schema: sessions, words tables; mutations: createSession, saveTranscriptWord)
-- Deepgram streaming API (WebSocket connection via temporary tokens)
-- MediaRecorder API (native browser recording)
-- Zustand (recording state: isRecording, duration)
-
-**Architecture components:**
-- AudioRecorder (browser component)
-- DeepgramClient (WebSocket management)
-- TranscriptView (real-time UI with useQuery subscription)
-
-### Phase 2: File Upload & Batch Transcription
-
-**Rationale:** Builds on Phase 1 foundation. Reuses transcript display UI. Tests Convex storage and Actions with external API calls. Critical for users who can't record live or have existing audio files.
+**Rationale:** Installs dependencies, creates reusable hooks/utilities, and fixes the prerequisite bug. No visual animation changes yet. This phase produces the building blocks every subsequent phase depends on.
 
 **Delivers:**
-- File upload with progress indicators
-- Batch transcription of uploaded files
-- Support for multiple audio formats
-- Error handling for large files
+- Motion library installed and configured with LazyMotion + domAnimation
+- `tailwindcss-animate` plugin added to Tailwind config
+- `MotionConfig reducedMotion="user"` wrapper in place (accessibility foundation)
+- `useStableQuery` hook created and integrated for search
+- Search flash bug eliminated (stable data regardless of debounce/query timing)
+- Animation timing constants defined (durations, easing curves)
 
-**Addresses (table stakes features):**
-- File upload/import
-- Multiple audio formats handling
+**Addresses features:** Fix search flash bug, `prefers-reduced-motion` support
 
-**Avoids (moderate pitfalls):**
-- Audio file upload size limits (validate early, show clear limits: max 50MB)
-- Convex upload URL expiry (generate immediately before upload)
-- Mobile browser memory exhaustion (stream chunks, don't buffer entire file)
+**Avoids pitfalls:** Wrong package installation (Pitfall 3), accessibility violations (Pitfall 9), animated flash bug amplification (Pitfall 5)
 
-**Stack elements used:**
-- Convex Storage (file storage, upload URLs)
-- Convex Actions (Deepgram pre-recorded API for batch transcription)
-- @deepgram/sdk (server-side transcription for uploaded files)
+**Estimated complexity:** Low. Mostly configuration and a 15-line hook.
 
-**Architecture components:**
-- FileUploader component
-- Convex action: transcribeAudioFile
-- Convex mutation: saveAudioFile
+### Phase 2: Search Filtering Animations
 
-### Phase 3: Organization & Discovery (Library Features)
-
-**Rationale:** Requires existing sessions/transcripts to be useful. Enhances usability once core transcription works. Adds search, filters, tags for managing multiple transcripts.
+**Rationale:** Builds directly on Phase 1's stable data layer. List animations are the highest-impact visual improvement and validate that Motion + AnimatePresence works correctly with Convex data flow. The `AnimatedTranscriptList` wrapper approach is proven and avoids conflict with existing swipe-to-delete transforms.
 
 **Delivers:**
-- Transcript library with search
-- Filters (Recent, Starred, tags)
-- Full-text search across all transcripts
-- Export transcripts (TXT format minimum)
+- `AnimatedTranscriptList` and `AnimatedListItem` components
+- Cards fade + scale on enter/exit during search filtering
+- Remaining cards smoothly reposition via layout animation
+- Staggered entrance on initial load (30-50ms per item, capped at 300ms total)
+- Touch press states on interactive elements (CSS-only quick win)
 
-**Addresses (table stakes features):**
-- Basic search
-- Export transcript
+**Addresses features:** List item animations during filtering, touch feedback, staggered list entrance
 
-**Addresses (differentiators):**
-- Starred/favorites
-- Tags/categorization
+**Avoids pitfalls:** Convex subscription interruption (Pitfall 4, via useStableQuery + React.memo), GPU memory exhaustion (Pitfall 6, limit concurrent animated elements), layout thrashing (Pitfall 7, use Motion's layout prop for batched FLIP), CLS from stagger (Pitfall 12, reserve space, animate only opacity + transform)
 
-**Stack elements used:**
-- Convex search indexes (full-text search on titles and transcript content)
-- Convex queries with filters
+**Estimated complexity:** Medium. The `popLayout` + `layout` pattern is well-documented but needs performance testing on real iOS devices in PWA standalone mode.
 
-**Architecture components:**
-- LibraryBrowser component
-- Search/filter UI
-- Export functionality
+### Phase 3: Tab Slide Transitions
 
-### Phase 4: AI Summarization & Intelligence
-
-**Rationale:** Requires complete transcripts (depends on Phase 1/2). Isolated feature that doesn't block other work. Adds high-value differentiation through AI-powered insights.
+**Rationale:** Self-contained within individual pages (no router involvement), no dependencies on the page transition system. Lower architectural risk than page transitions. Delivers visible polish on the transcript detail page, which is the most-used screen.
 
 **Delivers:**
-- AI-generated summaries (overview, key points)
-- Action item extraction with assignees
-- Summary display UI
+- `AnimatedTabContent` component with direction-aware sliding
+- Transcript/Summary tab transitions on detail page (slide left/right based on tab position)
+- Microphone/Upload tab transitions on record page
+- Active tab indicator slide animation (optional, `layoutId`-based)
 
-**Addresses (table stakes features):**
-- Basic AI summary
-- Action item extraction
+**Addresses features:** Tab content transitions, active tab indicator animation
 
-**Stack elements used:**
-- @anthropic-ai/sdk (Claude API integration)
-- Convex Actions (server-side Claude calls for security)
+**Avoids pitfalls:** Tab animation showing loading skeleton during slide (Pitfall 11, use AnimatePresence `mode="wait"` so exit completes before enter starts, prefetch data in parent), spring animations feeling laggy on mobile (Pitfall 13, use short tween/ease curves, not bouncy springs)
 
-**Architecture components:**
-- Convex action: generateSummary
-- SummaryPanel component
-- Streaming summary display (optional for MVP)
+**Estimated complexity:** Low-Medium. Standard AnimatePresence with keyed children. Direction tracking requires comparing previous/current tab index.
 
-### Phase 5: Reliability & Polish
+### Phase 4: Page Transitions
 
-**Rationale:** After core features work, focus on production-readiness. Address real-world scenarios discovered in testing. Improve UX based on actual usage patterns.
+**Rationale:** The riskiest feature because it depends on internal Next.js APIs and modifies the layout component. Built last so that if it proves problematic, all other animations still ship. This is the single biggest "premium feel" upgrade -- but it is also the most architecturally invasive.
 
 **Delivers:**
-- Robust WebSocket reconnection with audio buffering
-- DOM performance optimization (batching, virtual scrolling)
-- Speaker name editing UI
-- Real-world accuracy testing (noisy environments)
-- Background tab detection and warnings
-- Recording quality indicators
+- `PageTransitionProvider` with FrozenRouter
+- Subtle fade + translateY(8px) transitions between all routes
+- Forward/back navigation awareness
+- Graceful degradation if FrozenRouter import breaks
 
-**Avoids (moderate/minor pitfalls):**
-- WebSocket reconnection audio loss (buffer + replay)
-- DOM thrashing (batch updates, virtual scrolling)
-- Speaker diarization accuracy issues (manual editing, set expectations)
-- Noisy environment accuracy collapse (quality indicator, test with real audio)
-- Mobile browser background tab suspension (visibility detection)
-- Convex transaction conflicts (append-only pattern, precise queries)
+**Addresses features:** Animated page transitions
 
-**Optional (defer to post-MVP):**
-- PWA offline support (service worker, IndexedDB buffering, background sync)
-- Advanced export formats (SRT, VTT for captions)
-- Video transcription
+**Avoids pitfalls:** AnimatePresence exit failure in App Router (Pitfall 1, FrozenRouter pattern), internal API breakage (Pitfall 2, try/catch with graceful degradation + pinned version), heavy transitions feeling slow (Anti-pattern 5, keep under 200ms with subtle opacity + minimal position change), iOS calc() crash (Pitfall 10, never transition calc()-based properties)
+
+**Estimated complexity:** Medium-High. FrozenRouter is a well-documented community pattern, but it accesses internal APIs and must be tested across all route combinations. If it proves too fragile, this phase can be cut without affecting Phases 1-3.
 
 ### Phase Ordering Rationale
 
-1. **Phase 1 first** because real-time transcription is the core value proposition and validates the entire stack integration. Must work before building features on top.
+1. **Phase 1 first** because every other phase depends on Motion being installed, accessibility foundations being in place, and the search flash bug being fixed. Animations built on broken data make the UX worse, not better.
 
-2. **Phase 2 before AI summarization** because file upload provides an alternative recording method (critical for users who can't record live) and generates more transcripts for testing summarization.
+2. **Phase 2 before tabs or page transitions** because list animations produce the highest-impact visual improvement (the library page is the most-visited screen) and validate that the Motion + Convex integration works correctly before tackling more complex scenarios.
 
-3. **Phase 3 before Phase 5** because organization features increase user engagement, which helps validate which polish features matter most through actual usage patterns.
+3. **Phase 3 before page transitions** because tab animations are self-contained (no router involvement, no internal API dependency) and lower risk. They can ship independently if Phase 4 encounters problems.
 
-4. **Phase 4 (AI) is isolatable** and can run in parallel with Phase 3 if desired. It requires complete transcripts but doesn't block other features.
-
-5. **Phase 5 last** because reliability/polish improvements should be based on real-world testing and user feedback, not premature optimization.
+4. **Phase 4 last** because it is the only phase that touches the layout component and depends on an internal Next.js API. Building it last means all other animations are stable and will not be destabilized by layout-level changes. If page transitions prove unworkable, the milestone still delivers three of four features.
 
 **Dependency chain:**
 ```
-Phase 1 (Foundation) → Phase 2 (File Upload) → Phase 3 (Organization)
-                    ↘                        ↗
-                      Phase 4 (AI Summary)
-                                ↓
-                         Phase 5 (Polish)
+Phase 1 (Foundation + Flash Fix)
+  -> Phase 2 (List Animations)
+  -> Phase 3 (Tab Transitions)  [no dependency on Phase 2]
+  -> Phase 4 (Page Transitions) [no dependency on Phase 2 or 3, but benefits from lessons learned]
 ```
+
+Phases 2 and 3 are independent of each other and could theoretically be parallelized or reordered.
 
 ### Research Flags
 
-**Phases with standard patterns (skip /gsd:research-phase):**
+**Phases that need careful implementation research during planning:**
 
-- **Phase 1:** Real-time transcription patterns are well-documented in Deepgram and Convex docs. MediaRecorder API is standard. No additional research needed beyond initial stack research.
-- **Phase 2:** File upload patterns are standard in Convex docs. Deepgram pre-recorded API is well-documented.
-- **Phase 3:** Search/filter patterns are standard Convex query operations. Export to TXT is straightforward.
-- **Phase 4:** Claude API integration is well-documented. Summarization prompts are straightforward.
+- **Phase 4 (Page Transitions):** The FrozenRouter pattern relies on `next/dist/shared/lib/app-router-context.shared-runtime` which is an internal API. Verified against Next.js 15.5.12, but must test against the exact installed version. Consider building a minimal proof-of-concept before writing the full implementation. If the LayoutRouterContext import fails, fall back to no page transitions (graceful degradation) or evaluate the View Transitions API (once Next.js stabilizes it).
 
-**All phases can proceed with existing research.** No phase requires deep additional research during planning.
+**Phases with standard, well-documented patterns (skip deep research):**
 
-**Testing focus areas by phase:**
-- **Phase 1:** Critical iOS Safari testing on physical devices (format compatibility, PWA recording bug)
-- **Phase 2:** Large file handling, format conversion testing
-- **Phase 3:** Search performance with large transcript databases
-- **Phase 4:** Prompt engineering for optimal summary quality
-- **Phase 5:** Real-world mobile network testing, noisy environment testing
+- **Phase 1 (Foundation):** Package installation, hook creation, Tailwind plugin config. All thoroughly documented.
+- **Phase 2 (List Animations):** AnimatePresence + layout prop is textbook Motion. The `useStableQuery` pattern is from official Convex blog. Well-trodden ground.
+- **Phase 3 (Tab Transitions):** AnimatePresence with keyed children. No router complications. Standard pattern.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All versions verified as of Feb 2026, official docs consulted, proven integrations |
-| Features | HIGH | Comprehensive competitive analysis of 15+ transcription tools, clear market expectations |
-| Architecture | HIGH | Verified patterns from Deepgram and Convex official docs, latency estimates are realistic |
-| Pitfalls | MEDIUM | iOS-specific issues verified from multiple sources, but require physical device testing; real-world accuracy depends on use cases |
+| Stack | HIGH | All versions verified on npm within 24 hours of research. Motion v12.34.0 confirmed React 19 compatible. tailwindcss-animate confirmed Tailwind v3 compatible. Bundle sizes verified via official docs. |
+| Features | HIGH | Timing specs from NNGroup research and Material Design 3. Feature prioritization based on codebase analysis and UX research. Search flash bug root cause confirmed by reading actual source code. |
+| Architecture | HIGH (core) / MEDIUM (page transitions) | List animations, tab transitions, useStableQuery all use standard, well-documented patterns. Page transitions via FrozenRouter are community-standard but depend on internal Next.js API. |
+| Pitfalls | MEDIUM-HIGH | Critical pitfalls (App Router exit failure, wrong package, Convex flash, search bug, accessibility) verified with official sources. iOS PWA performance penalty confirmed via Apple Forums. iOS Safari calc() crash has multiple reports but no official WebKit confirmation. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-**During Phase 1 planning:**
-- **iOS device testing strategy**: Need access to physical iPhone devices (not simulators) for format compatibility and PWA recording bug validation. Recommend testing on iPhone 12+, iOS 16+.
-- **Deepgram pricing/limits**: Verify concurrent connection limits and upgrade path for scaling. Free tier may limit concurrent streams.
-
-**During Phase 2 planning:**
-- **Audio format conversion**: If iOS Safari produces incompatible formats, may need server-side FFmpeg transcoding. Research FFmpeg integration with Convex Actions (may hit 10-minute timeout for large files).
-
-**During Phase 4 planning:**
-- **Claude prompt optimization**: Initial prompts for summary/action items may need iteration based on transcript quality. Budget time for prompt engineering.
-
-**During Phase 5 planning:**
-- **Background sync implementation**: If implementing offline support, IndexedDB patterns need careful design to avoid iOS eviction issues. Consider using Convex's client SDK cache instead.
-
-**Overall:** Most gaps are implementation details rather than architectural unknowns. The stack choices are validated and well-documented. Primary unknowns are iOS-specific behavior that requires physical device testing.
+- **iOS PWA standalone mode performance:** Budget 40fps, not 60fps, but exact performance characteristics need validation on a physical iOS device in standalone mode. Cannot be simulated.
+- **FrozenRouter stability across Next.js updates:** The `LayoutRouterContext` import path has changed between Next.js 13, 14, and 15. Must pin Next.js version and add a CI test that verifies the import path resolves. If a future upgrade breaks it, page transitions degrade to instant cuts (not a crash).
+- **Layout animation performance at scale:** Using `layout` prop on 20+ transcript cards simultaneously may cause layout thrashing on budget devices. Need to profile and potentially limit layout animations to viewport-visible cards only.
+- **domAnimation vs domMax:** Starting with `domAnimation` (~20kb) which covers AnimatePresence and basic animations. If list repositioning via the `layout` prop requires `domMax` (~30kb), the bundle increases by ~10kb. Test with `domAnimation` first; upgrade only if layout animations fail to work.
 
 ## Sources
 
-### Primary Sources (HIGH confidence)
+### Primary (HIGH confidence)
 
-**Stack & Technology:**
-- [Next.js 16 Release Notes](https://nextjs.org/blog/next-16) — verified versions and features
-- [Next.js PWA Guide](https://nextjs.org/docs/app/guides/progressive-web-apps) — built-in manifest support
-- [Convex Documentation](https://docs.convex.dev/) — real-time patterns, file storage, actions
-- [Deepgram Streaming API](https://developers.deepgram.com/reference/speech-to-text/listen-streaming) — WebSocket streaming, token auth
-- [Deepgram JavaScript SDK](https://developers.deepgram.com/docs/js-sdk) — v4 API reference
-- [Anthropic API Documentation](https://platform.claude.com/docs) — Claude integration patterns
-- [MDN MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder) — browser audio recording
-- [Zustand Documentation](https://zustand.docs.pmnd.rs/) — state management patterns
-- [shadcn/ui Tailwind v4 Guide](https://ui.shadcn.com/docs/tailwind-v4) — component library setup
+**Motion / Animation Library:**
+- [Motion installation docs](https://motion.dev/docs/react-installation) -- import paths, React 19 setup
+- [Motion LazyMotion docs](https://motion.dev/docs/react-lazy-motion) -- bundle size optimization (4.6kb + 15kb async)
+- [Motion AnimatePresence docs](https://motion.dev/docs/react-animate-presence) -- exit animation patterns, modes
+- [Motion accessibility docs](https://motion.dev/docs/react-accessibility) -- reducedMotion support
+- [Motion performance guide](https://motion.dev/docs/performance) -- GPU-accelerated property list
+- [Motion upgrade guide](https://motion.dev/docs/react-upgrade-guide) -- framer-motion to motion migration
+- [motion on npm](https://www.npmjs.com/package/motion) -- v12.34.0, 3.6M weekly downloads
 
-**Architecture:**
-- [Convex Actions](https://docs.convex.dev/functions/actions) — external API integration patterns
-- [Convex Realtime](https://docs.convex.dev/realtime) — subscription patterns
-- [Convex File Storage](https://docs.convex.dev/file-storage) — upload/download patterns
-- [Deepgram Token Auth](https://developers.deepgram.com/guides/fundamentals/token-based-authentication) — temporary token security
-- [Deepgram Browser Live Transcription](https://deepgram.com/learn/live-transcription-mic-browser) — WebSocket setup
-- [Optimize Transaction Throughput with Convex](https://stack.convex.dev/high-throughput-mutations-via-precise-queries) — append-only pattern
+**Next.js / React:**
+- [Next.js viewTransition config](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition) -- experimental status confirmed
+- [React Labs: View Transitions](https://react.dev/blog/2025/04/23/react-labs-view-transitions-activity-and-more) -- React ViewTransition experimental
+- [useDeferredValue](https://react.dev/reference/react/useDeferredValue) -- search input handling
 
-**Features & Competitive Analysis:**
-- [Otter.ai Features 2026](https://otter.ai/features) — market leader feature set
-- [Best Speech-to-Text APIs 2026](https://deepgram.com/learn/best-speech-to-text-apis-2026) — comparison
-- [14 Best Voice to Text Apps 2026](https://voicetonotes.ai/blog/best-voice-to-text-app-android-iphone/) — mobile focus
-- [Transcription App Competitive Features](https://www.taption.com/blog/en/ai-transcribing-tool-review-en) — feature comparison
-- [AI Meeting Summary Tools 2026](https://fellow.ai/blog/ai-meeting-summary-tools/) — summary features
+**Convex:**
+- [Help, my app is overreacting! -- Convex Blog](https://stack.convex.dev/help-my-app-is-overreacting) -- useStableQuery pattern
+- [Convex React client docs](https://docs.convex.dev/client/react) -- useQuery subscription behavior
 
-### Secondary Sources (MEDIUM confidence)
+**CSS / Tailwind:**
+- [tailwindcss-animate GitHub](https://github.com/jamiebuilds/tailwindcss-animate) -- v3-compatible animation utilities
+- [Tailwind CSS animation utilities](https://tailwindcss.com/docs/animation) -- built-in animate-* classes
 
-**Pitfalls & Best Practices:**
-- [How to Implement MediaRecorder with iPhone Safari Support](https://www.buildwithmatija.com/blog/iphone-safari-mediarecorder-audio-recording-transcription) — iOS format issues
-- [Deepgram Audio Keep Alive](https://developers.deepgram.com/docs/audio-keep-alive) — KeepAlive implementation
-- [PWA iOS Limitations and Safari Support](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide) — iOS PWA issues
-- [WebSocket Reconnection Logic](https://oneuptime.com/blog/post/2026-01-24-websocket-reconnection-logic/view) — reconnection patterns
-- [PWA Offline Data](https://web.dev/learn/pwa/offline-data) — IndexedDB eviction
-- [Best Speaker Diarization Models 2026](https://brasstranscripts.com/blog/speaker-diarization-models-comparison) — accuracy benchmarks
-- [Real-time Transcription Guide 2026](https://picovoice.ai/blog/complete-guide-to-streaming-speech-to-text/) — latency optimization
-- [Virtual Scrolling in React](https://blog.logrocket.com/virtual-scrolling-core-principles-and-basic-implementation-in-react/) — performance optimization
+**UX Research:**
+- [NNGroup: Animation Duration](https://www.nngroup.com/articles/animation-duration/) -- timing best practices
+- [Material Design 3: Easing and Duration](https://m3.material.io/styles/motion/easing-and-duration) -- easing curves
+- [prefers-reduced-motion -- MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) -- accessibility
 
-**Quality & Accuracy:**
-- [How Accurate Is AI Transcription in 2026?](https://gotranscript.com/en/blog/ai-transcription-accuracy-benchmarks-2026) — accuracy benchmarks
-- [What is Speaker Diarization?](https://www.assemblyai.com/blog/what-is-speaker-diarization-and-how-does-it-work) — technical overview
+### Secondary (MEDIUM confidence)
+
+**Next.js App Router Animation Patterns:**
+- [FrozenRouter page transition pattern](https://www.imcorfitz.com/posts/adding-framer-motion-page-transitions-to-next-js-app-router) -- community solution
+- [GitHub Discussion #42658: Route transitions in app directory](https://github.com/vercel/next.js/discussions/42658) -- community validation
+- [Motion Issue #2411: exit not working in App Router](https://github.com/framer/motion/issues/2411) -- confirmed issue
+
+**Performance / iOS:**
+- [Standalone PWA slow performance on iOS 16 -- Apple Forums](https://developer.apple.com/forums/thread/714477) -- performance penalty confirmed
+- [Forced reflow -- Chrome DevTools](https://developer.chrome.com/docs/performance/insights/forced-reflow) -- layout thrashing
+- [Web Animation Performance Tier List -- Motion](https://motion.dev/blog/web-animation-performance-tier-list) -- property rankings
+- [Mobile Safari CSS crash with calc()](https://www.elfboy.com/blog/mobile_safari_crashes_with_css_transition_and_calc) -- iOS crash bug
+
+**Accessibility:**
+- [Accessible Animations in React -- Josh Comeau](https://www.joshwcomeau.com/react/prefers-reduced-motion/) -- React patterns
+- [No-motion-first approach -- Tatiana Mac](https://www.tatianamac.com/posts/prefers-reduced-motion) -- design philosophy
 
 ---
-
-*Research completed: 2026-02-09*
-*Ready for roadmap: Yes*
+*Research completed: 2026-02-10*
+*Ready for roadmap: yes*

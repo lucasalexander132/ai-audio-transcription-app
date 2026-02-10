@@ -1,240 +1,375 @@
-# Feature Landscape: Audio Transcription Apps
+# Feature Landscape: Micro Interactions & Animations
 
-**Domain:** Real-time audio transcription and meeting notes
-**Researched:** 2026-02-09
-**Confidence:** HIGH (based on comprehensive competitive analysis)
+**Domain:** Mobile-first PWA micro interactions and animation patterns
+**Researched:** 2026-02-10
+**Confidence:** HIGH (verified against NNGroup, Material Design guidelines, Motion library docs, and current codebase analysis)
 
 ## Executive Summary
 
-The audio transcription market in 2026 has matured significantly with clear feature tiers. Table stakes features are well-established (real-time transcription, speaker diarization, basic AI summaries), while competitive differentiation happens through specialized use cases, collaboration features, and post-processing capabilities. Anti-features center on bloat, forced meeting bots, and poor UX from over-automation.
+Premium mobile-first apps feel premium because of the _absence_ of jarring state changes, not because of flashy effects. The difference between "app feels cheap" and "app feels polished" comes down to four things: (1) elements never pop in or out abruptly, (2) spatial relationships are maintained through motion (e.g., a page slides in from the right because the user tapped something on the right), (3) touch interactions have immediate visual feedback, and (4) loading states feel active rather than passive.
 
-Your mockups hit all table stakes features and include several differentiators (mobile-first PWA, file upload, starred transcripts). Key gaps: export formats beyond basic, collaboration features, and advanced search capabilities.
+The existing Transcripts app already has the right structural bones -- skeleton loaders on detail pages, CSS transitions on filter tabs and search toggle, smooth waveform visualization. What's missing is the connective tissue: transitions _between_ pages, animation _between_ tab content, and smooth list item changes when filtering. These are the gaps that separate "functional" from "feels native."
 
-## Table Stakes Features
+This research covers what to build, what timing values to use, and critically, what NOT to build to avoid the common trap of over-animating.
 
-Features users expect. Missing these = product feels incomplete or broken.
+---
 
-| Feature | Why Expected | Complexity | Status in Mockups | Notes |
-|---------|--------------|------------|-------------------|-------|
-| **Real-time transcription** | Core value proposition; 90%+ accuracy expected | Medium | ✓ Present | Live transcript shown in recording view |
-| **Speaker diarization** | Multi-speaker scenarios are the norm; users expect "Speaker 1", "Speaker 2" labeling | High | ✓ Present | Shown with speaker attribution in transcript view |
-| **Audio playback with transcript sync** | Users need to verify/correct transcripts; expect tap-to-seek | Medium | ✓ Present | Playback controls in transcript view |
-| **Basic AI summary** | Manual summarization is 2020s; users expect auto-generated overview | Medium | ✓ Present | AI Summary tab with overview, key points, action items |
-| **Action item extraction** | Meetings without follow-up tasks are rare; automatic detection saves time | Medium | ✓ Present | Action items with assignees shown in AI Summary |
-| **File upload/import** | Not all content is recorded live; need to transcribe existing audio | Low | ✓ Present | Upload button in recording view |
-| **Basic search** | Users need to find past transcripts; search is baseline expectation | Low | ✓ Present | Search shown in home/library view |
-| **Export transcript** | Users need to share/save transcripts outside the app | Low | Unclear | Settings show "export format" but not visible in UI |
-| **Multiple languages** | Global user base expects native language support | Medium | ✓ Partial | Settings show "language" option |
-| **Speaker labeling/editing** | Auto-diarization is imperfect; users need to fix "Speaker 1" → "John" | Low | Missing | No visible speaker editing in mockups |
-| **Timestamps** | Users need to reference specific moments; "at 3:45 we discussed..." | Low | Unclear | Likely present but not shown in mockups |
-| **Accuracy 90%+** | Below 90% requires too much manual correction to be useful | High | N/A | Depends on Deepgram implementation |
-| **Mobile recording** | In-person meetings happen away from desks | Medium | ✓ Present | PWA is mobile-first per project context |
-| **Pause/resume recording** | Long meetings need bathroom breaks without stopping entire recording | Low | Unclear | Not visible in mockup recording controls |
+## Table Stakes
+
+Features users expect in any premium mobile-first app. Missing these = the app feels static, cheap, or broken.
+
+| Feature | Why Expected | Complexity | Current Status | Notes |
+|---------|--------------|------------|----------------|-------|
+| **Touch feedback on interactive elements** | Every native app provides immediate visual response to taps; absence makes the app feel unresponsive | Low | Partial -- filter tabs have `transition: 0.15s` on bg/color, but no active state scale/press feedback | Material ripple is the gold standard; for this app, a subtle scale-down + opacity change on `:active` is sufficient |
+| **Smooth tab content transitions** | Content that just appears/disappears when switching tabs feels like a broken webpage, not an app | Medium | Missing -- tab content swaps instantly with conditional rendering (`activeTab === "transcript" ? ... : ...`) | Slide or crossfade between tab panels; the direction should follow the tab position (left tab = slide left) |
+| **Loading skeleton animations** | Static gray boxes feel frozen; animated shimmer communicates "content is loading" | Low | Present -- `animate-pulse` on skeleton divs in detail and library pages | Already implemented well; keep as-is |
+| **Button press states** | Buttons that don't visually respond to touch feel dead | Low | Partial -- some hover states via group-hover; no consistent `:active` treatment | Add `transform: scale(0.97)` and slight opacity reduction on `:active` for all tappable elements |
+| **Search bar expand/collapse animation** | Search bar that pops in/out of existence looks glitchy | Low | Missing -- search bar uses `{showSearch && <SearchBar />}` which hard-cuts | Animate height + opacity; slide down when opening, slide up when closing |
+| **Content fade-in on page load** | Content that pops into existence all at once feels abrupt | Low | Missing -- pages render instantly when data arrives | Subtle opacity 0->1 + translateY(8px)->0 on initial content render, 200-300ms |
+| **List item animations during filtering** | Cards that pop in/out when search results change feels jarring and disorienting | Medium | Missing -- the displayTranscripts list re-renders instantly on filter/search change | Cards should fade/slide in when appearing, fade out when disappearing; new results should stagger in |
+| **prefers-reduced-motion respect** | ~35% of users have this enabled; ignoring it is an accessibility violation (WCAG 2.3.3) | Low | Missing -- no `prefers-reduced-motion` media queries anywhere in the codebase | Wrap ALL animations in `@media (prefers-reduced-motion: no-preference)` or use Motion's built-in support |
 
 ## Differentiators
 
-Features that set products apart. Not expected, but create competitive advantage.
+Features that separate good from great. Users don't consciously miss these, but they _feel_ the difference.
 
-| Feature | Value Proposition | Complexity | Status in Mockups | Market Examples |
-|---------|-------------------|------------|-------------------|-----------------|
-| **PWA/Mobile-first** | No app store friction; works across devices; offline capable | Medium | ✓ Present | Most competitors are web-first or native app |
-| **Offline transcription** | Privacy-focused; no internet required; GDPR/compliance friendly | Very High | Missing | Growing 2026 trend; technically challenging |
-| **Real-time collaborative editing** | Multiple users edit same transcript simultaneously | High | Missing | Trint's journalism focus; Google Docs-style |
-| **Advanced search (semantic)** | Search by concept not keywords: "budget discussions" finds cost talk | High | Missing | Sonix's analysis powerhouse capability |
-| **Custom vocabulary/jargon** | Medical, legal, technical terms transcribed correctly | Medium | Missing | Rev, Dragon for specialized domains |
-| **Live waveform visualization** | Visual feedback during recording; aesthetic + functional | Low | ✓ Present | Modern UX expectation for audio apps |
-| **Starred/favorites** | Quick access to important transcripts | Low | ✓ Present | Common but well-executed in mockups |
-| **Tags/categorization** | Organize transcripts beyond chronological | Low | ✓ Present | Shown in home/library filters |
-| **Sentiment analysis** | Auto-detect tone, emotions in conversation | Medium | Missing | Sonix offers; useful for sales/support |
-| **Multi-language code-switching** | Handle speakers mixing languages mid-sentence | Very High | Missing | Taption's competitive edge for Asian markets |
-| **Text-based audio editing** | Edit audio by editing transcript (delete text = delete audio) | Very High | Missing | Descript's killer feature for podcasters |
-| **Auto-chapters/sections** | Break long transcripts into logical sections | Medium | Missing | Sonix, tl;dv offer; improves readability |
-| **Meeting templates** | Pre-set action item formats, quote extraction | Low | Missing | Rev's VoiceHub templates |
-| **Playback speed control** | Review long recordings faster (1.5x, 2x) | Low | ✓ Likely | Standard audio player feature |
-| **Bookmark moments during recording** | Flag important points in real-time | Low | Missing | Rev mobile app offers |
-| **Cloud sync** | Access transcripts across devices | Medium | ✓ Partial | Settings show "cloud sync"; using Convex |
-| **Video transcription** | Upload video files, not just audio | Medium | Missing | Many competitors offer; easy with Deepgram |
-| **Translation (post-transcription)** | Transcribe in English, translate to 70+ languages | Medium | Missing | Trint offers; different from multi-language transcription |
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Animated page transitions** | Pages that slide/crossfade between routes feel like a native iOS/Android app, not a website | Medium-High | This is the single biggest "premium feel" upgrade; the transition between `/transcripts` and `/transcripts/[id]` should feel like pushing/popping a navigation stack |
+| **Directional tab swiping with gesture** | Swiping left/right between Transcript and AI Summary tabs mirrors native iOS tab behavior | High | Touch gesture handling adds significant complexity; recommend starting with animated transitions on tap, add swipe gesture in v2 if desired |
+| **Staggered list item entrance** | When transcript cards load, each card appearing with a slight delay (30-50ms stagger) creates a cascading "waterfall" effect that feels premium | Low | Stagger delay must be small (30-50ms per item, capped at ~300ms total); too long feels slow |
+| **Active tab indicator animation** | Instead of the underline just appearing on the selected tab, it should slide smoothly from one tab to the other (like a moving highlight bar) | Medium | Requires layout-aware animation -- the indicator needs to know the position and width of each tab; Motion's `layoutId` makes this straightforward |
+| **Shared element transitions** | When tapping a transcript card in the list, the card "expands" into the detail page, maintaining visual continuity | Very High | This is the iOS "hero transition" pattern; technically possible with View Transitions API or Motion's `layoutId`, but extremely complex to get right with Next.js App Router -- defer |
+| **Pull-to-refresh animation** | Custom pull-to-refresh with a branded animation instead of the browser default | High | Nice but not worth the complexity for v1.1; browser default is acceptable |
+| **FAB menu spring animation** | FAB button that opens with a spring-based expand animation, items popping out with staggered delay | Medium | The FAB menu already exists; adding spring-based open/close animation would make it feel alive |
+| **Haptic feedback on key actions** | Vibration on record start/stop, star toggle, delete confirmation | Low | Uses the Vibration API (`navigator.vibrate()`); not supported on iOS Safari, so must be treated as progressive enhancement only |
+| **Scroll-linked header compression** | Header that shrinks/fades as user scrolls down the transcript list, giving more room for content | Medium | Common in native apps; adds polish but requires intersection observer or scroll listener |
 
 ## Anti-Features
 
-Features to deliberately NOT build. Common mistakes in this domain.
+Animations that HURT UX. Common mistakes teams make when adding "polish."
 
-| Anti-Feature | Why Avoid | What to Do Instead | Market Evidence |
-|--------------|-----------|-------------------|-----------------|
-| **Forced meeting bots** | Users hate visible bots joining calls; breaks flow, privacy concerns | Allow upload of recordings instead of requiring bot presence | [Most users hate meeting bots](https://www.meetjamie.ai/blog/best-call-transcription-software); creates awkward client situations |
-| **Feature bloat** | Adding every AI feature makes app slow, confusing, unreliable | Focus on core transcription + summary; defer advanced features | [Descript criticized for bloat](https://www.eesel.ai/blog/descript) with cramming AI features |
-| **Auto-edit without undo** | AI corrections can destroy original transcript; users panic | Always preserve original; make edits reversible | [Notta criticized](https://tldv.io/blog/notta-ai-review/) for easy accidental changes, no undo |
-| **Unreliable AI automation** | AI features that require more correction time than manual work | Ship features only when accuracy >90%; allow manual override | Descript's Studio Sound and Eye Contact produce unnatural results |
-| **Complex pricing per-user** | Steep per-seat pricing ($80/user) limits adoption | Usage-based or flat pricing for small teams | Trint at $80/month vs Sonix at $22/month |
-| **Platform-locked integration** | Only works with Zoom or only Google Meet | Support multiple platforms or none (upload-based) | Reduces addressable market significantly |
-| **Infinite local storage** | IndexedDB limits prevent unlimited offline recordings | Cloud-first with selective offline caching | [PWA storage limitations](https://progressier.com/pwa-capabilities/audio-recording) documented |
-| **Over-promising language support** | Claiming support for languages with poor accuracy | Focus on well-supported languages; be honest about accuracy | [Notta's Greek transcription](https://tldv.io/blog/notta-ai-review/) "very poor" |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Page transitions longer than 350ms** | NNGroup research shows animations >400ms feel like "a real drag"; 500ms+ actively frustrates users trying to navigate quickly | Keep page transitions at 250-350ms max; elements appearing should be slightly longer than elements disappearing (appearing: 300ms, disappearing: 200-250ms) |
+| **Bounce/elastic easing on navigation** | Bouncy spring animations feel playful on marketing sites but feel unprofessional and slow in productivity tools; users navigating between transcripts want speed, not personality | Use `ease-out` (deceleration) for elements entering; `ease-in` for elements leaving; save spring physics for micro-moments like toggle switches or star buttons |
+| **Animating layout-triggering CSS properties** | Animating `width`, `height`, `top`, `left`, `margin`, `padding` causes browser reflows and drops below 60fps on mobile; this causes visible jank | ONLY animate `transform` and `opacity` -- these are GPU-composited and run at 60fps even on low-end devices; use `transform: translateX/Y/scale` instead of position/size changes |
+| **Blocking animations that prevent interaction** | Animations that must complete before the user can interact with the new content make the app feel slower than having no animation at all | All transition animations should be interruptible; if the user taps "back" during a forward transition, it should immediately reverse |
+| **Stagger delays that are too long** | Staggering 20 list items at 100ms each = 2 seconds before the last item appears; the user is waiting to see content that already loaded | Cap total stagger time at 300ms regardless of item count; if 10 items, use 30ms stagger; if 20 items, use 15ms stagger; if >20, don't stagger |
+| **Animating every single element** | When everything moves, nothing stands out; the eye has no focal point and the UI feels "swimmy" | Animate only state changes the user initiated; background elements should be static while the changing element animates |
+| **Parallax scrolling on transcript content** | Parallax creates motion sickness triggers (vestibular disorders) and adds zero value to a productivity tool | Keep transcript content in normal scroll flow; no parallax, no scroll-linked transforms on content |
+| **Animated route transitions that break browser back** | Custom transitions that interfere with browser back/forward navigation or break the browser history feel like a broken website | Ensure page transitions work WITH the browser navigation, not against it; the back button should trigger a reverse transition |
+| **Auto-playing decorative animations** | Continuously animated elements (pulsing borders, floating icons, rotating elements) are distracting in a tool used for reading transcripts | The only continuous animation should be the recording indicator (pulsing red dot) and loading skeletons; everything else should be triggered by user action |
+
+---
+
+## Timing & Easing Specifications
+
+These values come from NNGroup research and Material Design 3 guidelines. Use these as the system defaults.
+
+### Duration Reference
+
+| Animation Type | Duration | Rationale |
+|----------------|----------|-----------|
+| Micro-interactions (toggles, checkboxes, button press) | 100-150ms | Must feel instantaneous; user expects immediate response |
+| Tab content transitions | 200-250ms | Fast enough to not slow navigation, long enough to see the motion |
+| Search bar expand/collapse | 200ms | Quick utility animation; should not impede workflow |
+| List item fade in/out | 150-200ms | Individual items should feel snappy; stagger creates the cascade effect |
+| Page transitions | 250-350ms | The "sweet spot" -- perceivable motion without feeling slow |
+| Modal/overlay appear | 250-300ms | Slightly slower to establish spatial relationship (coming from behind/below) |
+| Modal/overlay dismiss | 200ms | Dismissals should be faster than appearances (NNGroup finding) |
+| Stagger delay per item | 30-50ms | Cap total at 300ms; formula: `min(50, 300/itemCount)` |
+
+### Easing Reference
+
+| Context | CSS Value | Motion Library Value | When |
+|---------|-----------|---------------------|------|
+| Element entering (appearing) | `cubic-bezier(0, 0, 0.2, 1)` (ease-out / decelerate) | `{ ease: "easeOut" }` | Default for all enter animations -- starts fast, lands softly |
+| Element leaving (disappearing) | `cubic-bezier(0.4, 0, 1, 1)` (ease-in / accelerate) | `{ ease: "easeIn" }` | Exit animations -- starts slow, accelerates away |
+| Emphasis / attention | `cubic-bezier(0.4, 0, 0.2, 1)` (ease-in-out / standard) | `{ ease: "easeInOut" }` | Tab indicator slide, toggle switches |
+| Spring / playful | N/A (use JS) | `{ type: "spring", stiffness: 300, damping: 30 }` | Star toggle, FAB button, recording pulse -- sparingly |
+
+### Performance Rules
+
+| Rule | Why | How |
+|------|-----|-----|
+| ONLY animate `transform` and `opacity` | These are the only CSS properties that can be GPU-composited; everything else triggers reflow | Use `translateX/Y` instead of `left/top`; use `scale` instead of `width/height`; use `opacity` instead of `visibility` |
+| Use `will-change` sparingly | Pre-promoting too many elements wastes GPU memory | Only add `will-change: transform` to elements about to animate, remove after |
+| Prefer CSS animations for simple effects | CSS animations run on compositor thread, immune to main-thread jank | Use CSS for simple fades, slides; use JS only for complex orchestration |
+| Test on real mobile devices | Animations that are smooth on MacBook can jank on mid-range Android phones | Target 60fps on a 3-year-old Android phone as the baseline |
+
+---
+
+## Feature-Specific Implementation Patterns
+
+### 1. Page Transitions (Library <-> Detail)
+
+**Pattern:** Slide-and-fade. Forward navigation slides new page in from right, back navigation slides out to the right. Both use opacity crossfade.
+
+**Why this pattern:** Maintains spatial mental model (detail is "deeper" / to the right of the list). This matches iOS navigation stack and Android shared axis pattern.
+
+**Implementation approach for Next.js 15 App Router:**
+- Use `template.tsx` instead of `layout.tsx` for the animated wrapper (template remounts on navigation, layout persists)
+- Wrap page content in a Motion component with enter/exit animations
+- Track navigation direction (forward vs back) to determine slide direction
+- AnimatePresence in the template handles mounting/unmounting
+
+**Key constraint:** Next.js App Router does not natively support exit animations because the old page is unmounted before the new page mounts. This requires either: (a) AnimatePresence wrapping route content in a template, or (b) next-transition-router library, or (c) the experimental viewTransition config (Next.js 16+ only, NOT available in Next.js 15).
+
+**Recommendation:** Use Motion (Framer Motion) with `AnimatePresence` in a `template.tsx` file. This is the most battle-tested approach for Next.js 15 App Router.
+
+### 2. Tab Content Transitions (Transcript Detail)
+
+**Pattern:** Directional slide with crossfade. When switching from "Transcript" (left tab) to "AI Summary" (right tab), content slides left and fades; new content slides in from right and fades in. Reverse when going back.
+
+**Current code:** `{activeTab === "transcript" ? <TranscriptView /> : <AiSummary />}` -- instant swap, no animation.
+
+**Implementation approach:**
+- Wrap tab content in AnimatePresence with `mode="wait"` (or `mode="popLayout"` for overlap)
+- Track the direction of tab change (left-to-right or right-to-left)
+- Apply `translateX` + `opacity` animation with 200ms duration
+- The tab underline indicator should independently animate between positions using `layoutId`
+
+### 3. Search/Filter List Animations (Library)
+
+**Pattern:** Fade + vertical slide. Items leaving the list fade out and collapse vertically. Items entering fade in and expand from zero height. Items that remain in both states should smoothly reorder (layout animation).
+
+**Current code:** `displayTranscripts.map((transcript) => <TranscriptCard />)` -- instant re-render, causes the "flash" bug where unfiltered state briefly shows.
+
+**The search flash bug:** This happens because `searchInput` updates immediately on keystroke, but `debouncedSearch` lags by 300ms. During that 300ms window, `isSearchActive` is false (debounced value hasn't caught up), so it shows the unfiltered `filteredTranscripts` list instead of search results. Fix: track whether search is "pending" (input exists but debounced hasn't fired) and either keep showing previous results or show a skeleton.
+
+**Implementation approach:**
+- Wrap the transcript list in AnimatePresence
+- Each TranscriptCard gets `initial`, `animate`, and `exit` props
+- Use `layout` prop on cards for smooth reordering
+- Stagger entrance with `transition: { delay: index * 0.03 }` (capped)
+- Fix the flash bug first (logic fix), then add animations on top
+
+### 4. Content Loading Transitions
+
+**Pattern:** Skeleton-to-content crossfade. When data arrives, skeleton pulses should smoothly crossfade into actual content rather than hard-cutting.
+
+**Current code:** Loading skeletons use `animate-pulse` (good), but the transition from skeleton to content is instant (`isLoading ? skeleton : content`).
+
+**Implementation approach:**
+- Wrap skeleton and content in AnimatePresence with `mode="wait"`
+- Skeleton exits with opacity fade (150ms)
+- Content enters with opacity fade + subtle translateY (200ms)
+- This prevents the "pop" feeling when data loads
+
+### 5. Search Bar Expand/Collapse
+
+**Pattern:** Height animation with opacity. Search bar slides down from behind the header when opened, slides back up when closed.
+
+**Current code:** `{showSearch && <SearchBar />}` -- hard cut.
+
+**Implementation approach:**
+- Wrap in AnimatePresence
+- Animate `height: 0 -> auto` (using Motion's height animation support) + opacity
+- Duration: 200ms ease-out for open, 150ms ease-in for close
+- Auto-focus input after animation completes (use `onAnimationComplete`)
+
+### 6. Active Tab Indicator (Detail Page)
+
+**Pattern:** Sliding underline. The active tab underline smoothly moves from one tab to another.
+
+**Current code:** Each tab button has a conditional `borderBottom` -- no animation between states.
+
+**Implementation approach:**
+- Use a separate `<motion.div>` with `layoutId="activeTabIndicator"` positioned absolutely under the active tab
+- Motion's layout animation automatically slides it between positions
+- Duration: 200ms ease-in-out
+
+---
 
 ## Feature Dependencies
 
-Critical dependencies that affect roadmap sequencing:
-
 ```
-Core Recording Flow:
-Audio Capture → Real-time Transcription → Speaker Diarization → Display Transcript
-                                       ↓
-                            Cloud Storage (Convex)
-                                       ↓
-                            AI Summary (Claude) → Action Items
-
-File Upload Flow:
-File Upload → Cloud Storage → Transcription API → Speaker Diarization → Display
-                                                                      ↓
-                                                          AI Summary Generation
-
-Search & Organization:
-Transcript Storage → Full-text Indexing → Search
-                  → Tags/Metadata → Filtering
-                  → Starred Flag → Quick Access
-
-Export Flow:
-Transcript Data → Format Conversion (TXT/SRT/VTT/JSON) → Download/Share
+Foundation (do first):
+  Install Motion library
+  Set up animation constants (durations, easings)
+  Add prefers-reduced-motion wrapper/utility
+    |
+    v
+Bug Fix (do second):
+  Fix search flash bug (logic, not animation)
+    |
+    v
+Quick Wins (low complexity, high impact):
+  Button/touch press states (CSS only)
+  Search bar expand/collapse animation
+  Content fade-in on page load
+  Active tab indicator slide (detail page)
+    |
+    v
+Core Animations (the main deliverables):
+  Tab content transitions (detail page)
+  List item animations during search/filter
+  Page transitions (library <-> detail)
+    |
+    v
+Polish (if time permits):
+  FAB menu spring animation
+  Staggered list entrance on initial load
+  Skeleton-to-content crossfade
 ```
 
-**Key Dependencies:**
-- **Speaker diarization requires completed transcription**: Can't identify speakers until transcript exists
-- **AI summary requires full transcript**: Claude needs complete context for accurate summaries
-- **Search requires indexed storage**: Convex needs schema supporting full-text search
-- **Export requires format templates**: Need to structure data for SRT/VTT timecodes
-- **Offline mode requires service workers**: PWA infrastructure for background sync
+**Key dependency:** Page transitions are the most complex feature and depend on understanding Next.js App Router's template.tsx pattern. They should NOT be attempted first -- build confidence with simpler animations before tackling route transitions.
+
+---
 
 ## MVP Recommendation
 
-For MVP, prioritize this feature set:
+For the v1.1 milestone, prioritize these in order:
 
-### Phase 1: Core Recording & Transcription (Table Stakes)
-1. ✓ **Real-time audio recording** (mobile PWA)
-2. ✓ **Live transcription** (Deepgram streaming)
-3. ✓ **Speaker diarization** (Deepgram feature)
-4. ✓ **Cloud storage** (Convex for transcripts)
-5. ✓ **Basic playback** (HTML5 audio with transcript sync)
-6. ✓ **Simple AI summary** (Claude API for overview + key points)
+### Must Ship (Table Stakes)
 
-### Phase 2: Organization & Access (Table Stakes)
-1. ✓ **Transcript library** (list view with search)
-2. ✓ **Search** (full-text across all transcripts)
-3. ✓ **Filters** (Recent, Starred, all)
-4. ✓ **Tags** (user-defined categorization)
-5. **Export** (TXT format minimum; SRT/VTT for v2)
+1. **Fix search flash bug** -- This is a logic bug, not an animation; fix it first
+2. **prefers-reduced-motion support** -- Foundation for all other animation work; add once, respect everywhere
+3. **Touch press states** -- CSS-only, takes 30 minutes, makes every button feel alive
+4. **Tab content transitions** -- Medium complexity, high perceived value; the detail page will feel immediately more polished
+5. **Search/filter list animations** -- Cards fading/moving as results change eliminates the jarring re-render
 
-### Phase 3: Polish & Differentiators
-1. ✓ **Live waveform** (visual feedback during recording)
-2. **Speaker name editing** (relabel "Speaker 1" → "John")
-3. **Action item extraction** (structured output from Claude)
-4. **File upload** (transcribe existing audio)
-5. **Settings** (language, quality, auto-punctuation)
+### Should Ship (Differentiators)
 
-### Defer to Post-MVP
+6. **Page transitions** -- The single biggest "premium feel" upgrade but also the most complex; save for after the simpler animations are working
+7. **Active tab indicator animation** -- Small touch that adds polish to the detail page tab switcher
+8. **Search bar expand/collapse** -- Quick win that eliminates a hard-cut
 
-**Complexity too high for MVP:**
-- **Offline transcription**: Requires on-device ML models; privacy benefit but very high complexity
-- **Real-time collaboration**: Needs CRDT or OT for multi-user editing
-- **Text-based audio editing**: Requires audio manipulation, not just transcription
-- **Semantic search**: Needs vector embeddings, different from full-text search
-- **Video transcription**: Adds file size/storage complexity
+### Defer to Post-v1.1
 
-**Limited differentiation value:**
-- **Sentiment analysis**: Nice-to-have; not core to transcription use case
-- **Translation**: Separate feature from transcription; adds language complexity
-- **Meeting templates**: Useful for power users; not needed for initial adoption
-- **Auto-chapters**: Improves long transcript UX; can add after validating usage patterns
+- **Gesture-based tab swiping** -- High complexity, low incremental value over tap transitions
+- **Shared element / hero transitions** -- Very high complexity, requires View Transitions API (experimental in Next.js 15)
+- **Pull-to-refresh animation** -- Browser default is acceptable
+- **Haptic feedback** -- Not supported on iOS Safari; limited value
+- **Scroll-linked header** -- Nice but not core to the animation milestone
 
-**Market validation needed:**
-- **Bookmarking during recording**: Unclear if mobile users can multitask during recording
-- **Multiple export formats**: Start with TXT; add SRT/VTT if users request captions
+---
 
-## Feature Complexity Assessment
+## Technology Decision: Motion (Framer Motion)
 
-| Complexity | Features | Estimated Effort |
-|------------|----------|------------------|
-| **Low** | Tags, starred, basic search, pause/resume, playback speed, speaker editing, timestamps, export TXT | 1-3 days each |
-| **Medium** | File upload, AI summary, action items, cloud sync, language selection, waveform viz, custom vocabulary, auto-chapters | 3-7 days each |
-| **High** | Real-time transcription, speaker diarization, advanced search, collaborative editing, sentiment analysis, translation | 1-2 weeks each |
-| **Very High** | Offline transcription, code-switching, text-based audio editing, video transcription | 2-4 weeks each |
+**Recommendation:** Use **Motion** (formerly Framer Motion) v11+.
 
-**Notes on complexity:**
-- **Real-time transcription**: Medium if using Deepgram API; High if building custom
-- **Speaker diarization**: High accuracy is hard; Deepgram's built-in feature reduces effort
-- **AI summary**: Medium with Claude; parsing transcript structure is the challenge
-- **File upload**: Medium due to audio format handling (MP3, WAV, M4A, etc.)
+**Why Motion over alternatives:**
 
-## Mockups Gap Analysis
+| Library | Verdict | Reason |
+|---------|---------|--------|
+| **Motion (Framer Motion)** | **USE THIS** | Purpose-built for React; AnimatePresence solves the exit animation problem that CSS alone cannot; layout animations handle list reordering; 30KB gzipped is acceptable; production-proven at scale |
+| CSS transitions/animations only | Not sufficient | Cannot animate elements being removed from DOM (exit animations); cannot handle list reordering; cannot orchestrate staggered sequences easily |
+| React Spring | Skip | Physics-based model is harder to reason about for UI transitions; better for data visualization; less ergonomic API for the use cases here |
+| GSAP | Skip | Imperative API doesn't fit React's declarative model well; licensing concerns for commercial use; heavier than needed |
+| View Transitions API (native) | Not yet | React's `<ViewTransition>` is canary-only; Next.js viewTransition config requires Next.js 16+; the project is on Next.js 15; revisit when stable |
+| React Transition Group | Skip | Low-level primitive; Motion is built on top of similar concepts but with far better DX |
 
-### What's Present (Strong)
-- ✓ All core table stakes features shown
-- ✓ Clean mobile-first UI
-- ✓ Live waveform (differentiator)
-- ✓ Tags and filters (organization)
-- ✓ AI summary with action items
-- ✓ Settings for key configurations
+**Installation:**
+```bash
+npm install motion
+```
 
-### What's Missing (Consider Adding)
-1. **Speaker editing UI**: No way to rename "Speaker 1" to actual names
-2. **Export button**: Settings mention export format but no visible export action
-3. **Pause/resume**: Recording controls don't show pause button
-4. **Timestamps in transcript**: Not visible if transcript has time markers
-5. **Shared/collaborative indicators**: If multiple users access, who else is viewing?
-6. **Error states**: What happens if transcription fails or is low confidence?
-7. **Editing transcript**: Can users manually fix transcription errors?
-8. **Recording quality indicator**: Is audio quality good enough for transcription?
+**Note on naming:** Framer Motion was rebranded to "Motion" in 2024. The npm package is `motion` (previously `framer-motion`). Import paths changed from `framer-motion` to `motion/react`. The package `framer-motion` still works but is the legacy name.
 
-### What to Avoid (Anti-Patterns)
-1. **Don't add meeting bot integration** (forced Zoom bot joining)
-2. **Don't add too many AI features at once** (bloat risk)
-3. **Don't hide undo/history** (users need safety net)
-4. **Don't over-promise language support** (focus on well-supported languages)
+---
 
-## Market Position Based on Features
+## Mobile-Specific Considerations
 
-Based on competitive analysis, your feature set positions you as:
+| Consideration | Detail | Action |
+|---------------|--------|--------|
+| **Touch delay** | Mobile browsers have a ~100ms delay before `:active` styles apply on tap; use `touch-action: manipulation` to eliminate | Add `touch-action: manipulation` to all interactive elements |
+| **60fps on mid-range devices** | Desktop-smooth animations can jank on a 3-year-old Android phone | ONLY animate `transform` + `opacity`; avoid `filter`, `box-shadow`, `clip-path` during transitions |
+| **Overscroll behavior** | iOS Safari has elastic overscroll that can interfere with pull-to-refresh and swipe gestures | Don't fight the browser's native scroll behavior; work with it |
+| **Safe area insets** | The app already handles `env(safe-area-inset-bottom)` for the audio player; animation containers must respect this | Ensure animated page containers account for safe areas |
+| **Battery impact** | Continuous animations drain battery faster; users notice on mobile | No decorative continuous animations except recording indicator |
+| **Orientation** | The app is mobile-first portrait; landscape widths can make slide animations feel disproportionately far | Use percentage-based translateX values (e.g., `translateX(30%)`) rather than fixed pixel values for page slides |
 
-**Similar to:** Otter.ai (real-time, AI summaries, mobile-first)
-**Different from:**
-- Descript (no audio editing)
-- Trint (no journalism focus)
-- Rev (no human transcription service)
-- Fireflies (no meeting bot requirement)
+---
 
-**Competitive advantages:**
-1. **PWA = no app store**: Faster distribution, cross-platform
-2. **File upload + live recording**: Flexibility other tools lack
-3. **Mobile-first**: Most tools are web-first, mobile second
-4. **No meeting bot**: Privacy-friendly, works for in-person meetings
+## Reduced Motion Strategy
 
-**Competitive gaps:**
-1. **No real-time collaboration**: Trint's strength
-2. **No advanced analytics**: Sonix's sentiment, themes
-3. **No custom vocabulary**: Rev, Dragon for specialized domains
-4. **No offline mode**: Emerging privacy-focused trend
+**Approach:** "No-motion-first" -- animations are additive, not default.
+
+```css
+/* Base: no motion */
+.element { opacity: 1; transform: none; }
+
+/* Enhanced: add motion only when allowed */
+@media (prefers-reduced-motion: no-preference) {
+  .element {
+    transition: opacity 200ms ease-out, transform 200ms ease-out;
+  }
+}
+```
+
+**Motion library integration:** Motion respects `prefers-reduced-motion` when using the `useReducedMotion()` hook or by setting `transition: { duration: 0 }` conditionally. The recommended approach:
+
+```typescript
+import { useReducedMotion } from "motion/react";
+
+function AnimatedComponent() {
+  const shouldReduceMotion = useReducedMotion();
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.25 }}
+    />
+  );
+}
+```
+
+**When reduced motion is active, replace:**
+- Slide transitions with instant cuts (or very fast opacity fades)
+- Staggered lists with simultaneous appearance
+- Page transitions with simple crossfades (opacity only, no movement)
+- Spring animations with instant state changes
+
+**Never remove:** Loading indicators, progress feedback, recording status. These communicate essential information, not decoration.
+
+---
+
+## Reference: Premium App Animation Patterns
+
+These patterns are drawn from premium mobile apps and serve as the target quality bar.
+
+| App | Pattern | What They Do | Relevant To |
+|-----|---------|-------------|-------------|
+| **Apple Notes** | Navigation stack push/pop | Detail slides in from right with slight parallax on the list behind | Page transitions |
+| **Apple Music** | Tab bar content transitions | Content crossfades with a slight scale when switching tabs | Tab transitions |
+| **Notion** | List filtering | Items smoothly reorder and fade; new items slide in from top | Search/filter list |
+| **Linear** | Loading states | Skeleton shimmer with smooth crossfade to content | Loading transitions |
+| **Things 3** | Checkbox completion | Checkbox fills with a satisfying spring, item slides out of list | Micro-interactions |
+| **Spotify** | Search results | Results stream in with staggered fade as user types | Search animations |
+| **iOS Settings** | Navigation hierarchy | Push/pop with layered depth -- new page slides over old page which slightly scales down | Page transitions |
+
+---
+
+## Confidence Assessment
+
+| Area | Level | Reason |
+|------|-------|--------|
+| Timing/easing values | HIGH | Sourced from NNGroup research and Material Design 3 official guidelines |
+| Animation library choice (Motion) | HIGH | Industry standard for React; verified via official docs and npm stats |
+| Next.js App Router constraints | HIGH | Verified via Next.js official docs and community discussions; View Transitions confirmed experimental/Next.js 16+ only |
+| List animation patterns | MEDIUM | AnimatePresence + layout animation is well-documented; performance at scale (50+ items) should be tested |
+| Search flash bug diagnosis | HIGH | Directly read the codebase; root cause identified from the debounce/isSearchActive timing gap |
+| prefers-reduced-motion stats (35%) | MEDIUM | Cited by multiple sources but original study not verified; the principle stands regardless of exact percentage |
+
+---
 
 ## Sources
 
-Research based on comprehensive competitive analysis:
-
-- [Otter.ai Features 2026](https://otter.ai/features)
-- [Honest Otter AI Review 2026](https://tldv.io/blog/otter-ai-review/)
-- [Fireflies.ai Features 2026](https://fireflies.ai/product/features)
-- [Fireflies Review 2026](https://tldv.io/blog/fireflies-review/)
-- [Rev Review 2026](https://sonix.ai/resources/rev-review/)
-- [Best Speech-to-Text APIs 2026](https://deepgram.com/learn/best-speech-to-text-apis-2026)
-- [Best Real-time Speech-to-Text Apps 2026](https://www.assemblyai.com/blog/best-real-time-speech-to-text-apps)
-- [Best Audio & Video Transcription Apps 2026](https://riverside.com/blog/best-audio-video-transcription-apps)
-- [14 Best Voice to Text Apps 2026](https://voicetonotes.ai/blog/best-voice-to-text-app-android-iphone/)
-- [Transcription App Competitive Features 2026](https://www.taption.com/blog/en/ai-transcribing-tool-review-en)
-- [Best Transcription Software Comparison 2026](https://nortonresearch.com/best-transcription-software)
-- [Trint vs Sonix Features 2026](https://sonix.ai/resources/sonix-vs-trint/)
-- [Descript Review: AI Magic vs Bloat](https://www.eesel.ai/blog/descript)
-- [Notta AI Review: Honest Take 2026](https://tldv.io/blog/notta-ai-review/)
-- [PWA Audio Recording Capabilities](https://progressier.com/pwa-capabilities/audio-recording)
-- [Best Offline Transcription Apps 2026](https://voicescriber.com/best-offline-transcription-apps)
-- [Speaker Diarization Models Compared 2026](https://brasstranscripts.com/blog/speaker-diarization-models-comparison)
-- [Speaker Diarization Accuracy Challenges](https://www.assemblyai.com/blog/what-is-speaker-diarization-and-how-does-it-work)
-- [AI Meeting Summary Tools 2026](https://fellow.ai/blog/ai-meeting-summary-tools/)
-- [Transcript Export Formats Guide](https://brasstranscripts.com/blog/transcription-file-formats-decision-guide-2026)
-- [Multi-Speaker Transcript Formats](https://brasstranscripts.com/blog/multi-speaker-transcript-formats-srt-vtt-json)
+- [NNGroup: Executing UX Animations -- Duration and Motion](https://www.nngroup.com/articles/animation-duration/) -- Duration best practices, HIGH confidence
+- [Material Design 3: Easing and Duration](https://m3.material.io/styles/motion/easing-and-duration) -- Official easing curves, HIGH confidence
+- [Motion (Framer Motion) Official Docs](https://motion.dev) -- Animation library API, HIGH confidence
+- [Motion Animation Performance Guide](https://motion.dev/docs/performance) -- Performance tier list, HIGH confidence
+- [AnimatePresence Documentation](https://motion.dev/docs/react-animate-presence) -- Exit animation patterns, HIGH confidence
+- [Motion Easing Functions](https://motion.dev/docs/easing-functions) -- Easing reference, HIGH confidence
+- [React Labs: View Transitions, Activity, and more](https://react.dev/blog/2025/04/23/react-labs-view-transitions-activity-and-more) -- React ViewTransition status, HIGH confidence
+- [React ViewTransition Reference](https://react.dev/reference/react/ViewTransition) -- API reference (canary only), HIGH confidence
+- [Next.js viewTransition Config](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition) -- Experimental, Next.js 16+, HIGH confidence
+- [Next.js App Router Page Transitions Discussion](https://github.com/vercel/next.js/discussions/42658) -- Community approaches, MEDIUM confidence
+- [PWA Builder: Mimic Native Transitions in PWA](https://blog.pwabuilder.com/posts/mimic-native-transitions-in-your-progressive-web-app/) -- PWA transition patterns, MEDIUM confidence
+- [Pope Tech: Design Accessible Animation and Movement](https://blog.pope.tech/2025/12/08/design-accessible-animation-and-movement/) -- Accessibility, HIGH confidence
+- [MDN: prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion) -- Media query reference, HIGH confidence
+- [NNGroup: Skeleton Screens 101](https://www.nngroup.com/articles/skeleton-screens/) -- Loading pattern research, HIGH confidence
+- [Chrome Developers: View Transitions 2025 Update](https://developer.chrome.com/blog/view-transitions-in-2025) -- Browser API status, HIGH confidence
+- [Interaction Design Foundation: Micro-interactions in UX](https://www.interaction-design.org/literature/article/micro-interactions-ux) -- UX principles, MEDIUM confidence
+- [Web Animation Performance Tier List (Motion Magazine)](https://motion.dev/blog/web-animation-performance-tier-list) -- CSS property performance rankings, HIGH confidence

@@ -1,938 +1,406 @@
-# Architecture Patterns: Real-Time Audio Transcription PWA
+# Architecture Patterns: Micro Interactions & Animations
 
-**Domain:** Real-time audio transcription web application
-**Stack:** Next.js (App Router) + Convex + Deepgram + Claude API
-**Researched:** 2026-02-09
-**Overall confidence:** HIGH
+**Domain:** Animations in Next.js 15 App Router with Convex real-time data
+**Researched:** 2026-02-10
+**Overall confidence:** HIGH (core patterns), MEDIUM (page transitions due to App Router limitations)
 
 ## Executive Summary
 
-A Next.js + Convex real-time audio transcription app follows a **client-orchestrated, server-processed** architecture where the browser manages WebSocket connections to external services while Convex handles state management, persistence, and AI processing. The key architectural insight: **audio streaming happens client-to-Deepgram directly** (with temporary tokens), while **all AI logic and database operations live in Convex**.
+Adding animations to this Next.js 15 App Router + Convex application requires careful integration at three distinct levels: **page transitions** (cross-route navigation), **intra-page animations** (tab switching, content reveals), and **data-driven animations** (list filtering as Convex query results change). Each level has different constraints and requires different architectural approaches.
 
-This architecture achieves sub-300ms transcription latency through direct browser-to-Deepgram WebSocket streaming while maintaining security through temporary token authentication and backend-controlled summarization.
+The recommended animation library is **Motion** (formerly Framer Motion), installed as the `motion` npm package with imports from `motion/react`. Motion is the dominant React animation library with first-class support for layout animations, exit animations via `AnimatePresence`, and staggered list animations -- all three patterns needed here.
 
-## Recommended Architecture
+Page transitions in the App Router remain the most architecturally complex piece. The App Router unmounts and remounts page components during navigation, preventing standard `AnimatePresence` exit animations from working without a workaround. The proven approach uses a **FrozenRouter** pattern that freezes the layout router context during exit animations, combined with `AnimatePresence` keyed on the current route segment. This pattern is well-documented, community-tested, and verified to work with Next.js 15.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Browser (PWA)                             │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Next.js Client Components ("use client")                │   │
-│  │                                                           │   │
-│  │  ┌─────────────────┐     ┌──────────────────┐           │   │
-│  │  │ AudioRecorder   │────▶│ DeepgramClient   │           │   │
-│  │  │ Component       │     │ (WebSocket)      │           │   │
-│  │  └─────────────────┘     └──────────────────┘           │   │
-│  │         │                         │                      │   │
-│  │         │ MediaRecorder           │ WSS direct           │   │
-│  │         │ chunks (250ms)          │ connection           │   │
-│  │         ▼                         │                      │   │
-│  │  ┌─────────────────┐              │                      │   │
-│  │  │ TranscriptView  │              │                      │   │
-│  │  │ (Real-time UI)  │              │                      │   │
-│  │  └─────────────────┘              │                      │   │
-│  │         │                         │                      │   │
-│  │         │ useQuery()              │                      │   │
-│  │         │ subscription            │                      │   │
-│  └─────────┼─────────────────────────┼──────────────────────┘   │
-│            │                         │                          │
-│            │ WebSocket               │                          │
-│            │ (Convex)                │                          │
-└────────────┼─────────────────────────┼──────────────────────────┘
-             │                         │
-             ▼                         ▼
-    ┌────────────────────┐    ┌────────────────────┐
-    │   Convex Backend   │    │  Deepgram API      │
-    │                    │    │  (wss://api.       │
-    │  ┌──────────────┐  │    │   deepgram.com)    │
-    │  │  Mutations   │  │    │                    │
-    │  │  - saveWord  │  │    │  Streaming STT     │
-    │  │  - saveFile  │  │    │  - Real-time       │
-    │  └──────────────┘  │    │  - Pre-recorded    │
-    │                    │    └────────────────────┘
-    │  ┌──────────────┐  │
-    │  │  Queries     │  │    ┌────────────────────┐
-    │  │  - getWords  │  │    │  Claude API        │
-    │  │  - getList   │  │    │  (api.anthropic.   │
-    │  └──────────────┘  │    │   com)             │
-    │         ▲          │    │                    │
-    │         │          │    │  Summarization     │
-    │         │ runQuery│    │  - Overview        │
-    │  ┌──────────────┐  │    │  - Key Points      │
-    │  │  Actions     │  │    │  - Action Items    │
-    │  │  - summarize │──┼───▶│                    │
-    │  │  - transc... │  │    └────────────────────┘
-    │  └──────────────┘  │
-    │         │          │
-    │  ┌──────────────┐  │
-    │  │  Database    │  │
-    │  │  - sessions  │  │
-    │  │  - words     │  │
-    │  │  - summaries │  │
-    │  └──────────────┘  │
-    │                    │
-    │  ┌──────────────┐  │
-    │  │  Storage     │  │
-    │  │  - audioFiles│  │
-    │  └──────────────┘  │
-    └────────────────────┘
-```
+For Convex real-time data, the key insight is that `useQuery` returns `undefined` during loading and between query parameter changes. A **useStableQuery** hook prevents flash-of-undefined by holding the previous result in a ref until new data arrives. Combining this with Motion's `AnimatePresence` and `layout` prop creates smooth, animated transitions as search results filter in real time.
 
-## Component Boundaries
+## Layout Hierarchy & Animation Provider Placement
 
-### 1. Browser Layer (Next.js Client Components)
-
-| Component | Responsibility | State Management |
-|-----------|---------------|------------------|
-| **AudioRecorder** | Capture mic input via MediaRecorder, chunk into 250ms segments, stream to Deepgram WebSocket | Local state: recording status, MediaStream, WebSocket connection |
-| **FileUploader** | Accept audio file uploads, generate Convex upload URL, POST file to Convex storage | Local state: upload progress, file metadata |
-| **TranscriptView** | Display real-time transcript words as they arrive, show confidence scores, handle final vs partial | Convex useQuery subscription to `words` table |
-| **SummaryPanel** | Trigger AI summary generation, display results (overview, key points, actions) | Convex useQuery subscription to `summaries` table |
-| **LibraryBrowser** | List all sessions, filter/search, navigate to detail view | Convex useQuery with filters |
-| **DeepgramClient** | Manage WebSocket lifecycle, handle token refresh, emit transcript events | Local state: connection status, token expiry |
-
-**Key Pattern:** Client components are "thin" - they handle UI state and orchestrate flows but delegate all persistence and AI processing to Convex.
-
-### 2. Convex Backend Layer
-
-| Function Type | Responsibility | External Calls |
-|---------------|---------------|----------------|
-| **Mutations** | Transactional database writes - save words, sessions, summaries, associate files with sessions | None (pure DB operations) |
-| **Queries** | Read data for UI - fetch transcripts, list sessions, search, filter | None (pure DB reads) |
-| **Actions** | External API calls - Claude summarization, Deepgram pre-recorded transcription, token generation | Claude API, Deepgram API |
-| **HTTP Actions** | REST endpoints for file uploads, webhooks, health checks | May call mutations/queries |
-
-**Key Pattern:** Strict separation - mutations/queries are pure database operations (auto-retryable), actions handle external APIs (not retryable).
-
-### 3. External Services Layer
-
-| Service | Connection Type | Initiated By | Purpose |
-|---------|----------------|--------------|---------|
-| **Deepgram Streaming** | WebSocket (WSS) | Browser client | Real-time speech-to-text as user speaks |
-| **Deepgram Pre-recorded** | HTTP POST | Convex action | Batch transcription of uploaded audio files |
-| **Claude API** | HTTP POST (streaming) | Convex action | Generate AI summaries from transcripts |
-| **Convex Storage** | HTTP POST/GET | Browser + Convex | Store and retrieve audio files |
-
-## Data Flow Patterns
-
-### Flow 1: Real-Time Recording → Transcript
-
-**Confidence: HIGH** (verified with Deepgram official docs)
+### Current Layout Tree
 
 ```
-1. User clicks "Record"
-   → AudioRecorder component
-
-2. Request mic permissions
-   → navigator.mediaDevices.getUserMedia({ audio: true })
-
-3. Fetch temporary Deepgram token
-   → Call Convex action: generateDeepgramToken()
-   → Convex calls Deepgram token API with main API key
-   → Returns 30-second temporary token to browser
-
-4. Establish WebSocket connection
-   → Browser creates: new WebSocket('wss://api.deepgram.com/v1/listen', ['token', temp_token])
-   → Connection opens
-
-5. Start MediaRecorder with 250ms chunks
-   → mediaRecorder.start(250)
-   → dataavailable event fires every 250ms
-
-6. Stream audio chunks to Deepgram
-   → mediaRecorder.addEventListener('dataavailable', e => socket.send(e.data))
-   → Audio sent as binary WebSocket messages
-
-7. Receive transcript words in real-time
-   → socket.onmessage receives JSON with transcript
-   → Parse: { channel: { alternatives: [{ transcript, confidence }] }, is_final }
-
-8. Save words to Convex
-   → Call mutation: saveTranscriptWord({ sessionId, word, confidence, timestamp, is_final })
-   → Mutation writes to `words` table
-
-9. UI updates automatically
-   → TranscriptView useQuery subscription receives new word
-   → React re-renders with updated transcript
+app/layout.tsx (Root - Server Component)
+  ConvexAuthNextjsServerProvider
+    html > body
+      ConvexClientProvider
+        app/(app)/layout.tsx (Client Component)
+          auth check + redirect
+          div.min-h-screen.bg-background
+            {children}         <-- PAGE CONTENT RENDERS HERE
+            <FABMenu />        <-- Fixed-position FAB
 ```
 
-**Latency profile:**
-- Mic → Deepgram: 250ms (chunk interval)
-- Deepgram processing: <300ms (sub-second)
-- Deepgram → Browser: <50ms (WebSocket)
-- Browser → Convex mutation: ~50-100ms
-- Convex → Browser query update: <50ms (WebSocket)
-- **Total: ~400-700ms from speech to UI display**
-
-### Flow 2: File Upload → Batch Transcription
-
-**Confidence: HIGH** (verified with Convex and Deepgram docs)
+### Modified Layout Tree with Animation Support
 
 ```
-1. User selects audio file
-   → FileUploader component
-
-2. Generate upload URL
-   → Call Convex mutation: generateUploadUrl()
-   → Returns signed URL valid for 1 hour
-
-3. Upload file to Convex storage
-   → Browser POST file to upload URL
-   → Convex returns storageId
-
-4. Save file metadata
-   → Call mutation: saveAudioFile({ sessionId, storageId, filename, size })
-   → Mutation writes to `audioFiles` table
-
-5. Trigger transcription
-   → Call Convex action: transcribeAudioFile({ sessionId, storageId })
-
-6. Action retrieves file and sends to Deepgram
-   → ctx.storage.getUrl(storageId) - get download URL
-   → POST to Deepgram pre-recorded API with file URL or binary
-   → Deepgram processes (up to 10 min timeout for Nova models)
-
-7. Parse Deepgram response
-   → Extract words with timestamps and confidence
-   → Batch save via ctx.runMutation(saveTranscriptBatch, { sessionId, words })
-
-8. UI updates automatically
-   → TranscriptView subscription receives all words
-   → React renders full transcript
+app/layout.tsx (Root - Server Component) [NO CHANGES]
+  ConvexAuthNextjsServerProvider
+    html > body
+      ConvexClientProvider
+        app/(app)/layout.tsx (Client Component) [MODIFIED]
+          auth check + redirect
+          div.min-h-screen.bg-background
+            <PageTransitionProvider>     <-- NEW: wraps {children}
+              {children}
+            </PageTransitionProvider>
+            <FABMenu />                  <-- UNCHANGED: stays outside transition
 ```
 
-**Alternative pattern for large files (>20MB):**
-- Use Convex storage.getUrl() to generate public URL
-- Send URL to Deepgram pre-recorded API (remote file method)
-- Avoids 20MB HTTP action limit
+### Why This Placement
 
-### Flow 3: Transcript → AI Summary
+1. **PageTransitionProvider wraps `{children}` inside `(app)/layout.tsx`**: This is the only layout that persists across all authenticated routes (`/transcripts`, `/record`, `/settings`, `/transcripts/[id]`). Since layouts do not re-render on navigation, this is the stable mount point needed for `AnimatePresence` to detect route changes and run exit animations.
 
-**Confidence: MEDIUM** (Claude API streaming patterns extrapolated)
+2. **FABMenu stays outside the transition wrapper**: The FAB is a persistent UI element that should NOT animate during page transitions. It already conditionally hides on transcript detail pages via pathname check. Keeping it outside the `PageTransitionProvider` means it remains stable during transitions.
 
-```
-1. User clicks "Summarize"
-   → SummaryPanel component
+3. **Root layout is NOT modified**: The root layout is a Server Component and contains provider setup (Convex, fonts). Animation logic is client-only and belongs in the `(app)` client layout.
 
-2. Fetch full transcript
-   → Call Convex action: generateSummary({ sessionId })
+## Component Architecture: New Components
 
-3. Action queries transcript words
-   → ctx.runQuery(getTranscriptText, { sessionId })
-   → Returns array of words joined into text
+### 1. PageTransitionProvider (NEW)
 
-4. Call Claude API with streaming
-   → POST to api.anthropic.com/v1/messages
-   → System prompt: "Generate overview, key points, action items"
-   → User message: transcript text
-   → Enable streaming: stream=true
+**File:** `app/components/transitions/page-transition-provider.tsx`
+**Type:** Client component
+**Purpose:** Enables animated transitions between routes within the `(app)` route group.
 
-5. Process streaming response
-   → Parse SSE (Server-Sent Events) chunks
-   → Accumulate text as it arrives
-
-6. Save summary when complete
-   → ctx.runMutation(saveSummary, {
-       sessionId,
-       overview,
-       keyPoints: [],
-       actionItems: []
-     })
-
-7. UI updates automatically
-   → SummaryPanel useQuery subscription receives summary
-   → React renders formatted summary
-```
-
-**Note:** Claude streaming means partial results could be saved incrementally for better UX (show summary as it generates), but adds complexity. MVP recommendation: wait for full response.
-
-### Flow 4: Browse Transcript Library
-
-**Confidence: HIGH** (standard Convex query pattern)
+**Architecture:**
 
 ```
-1. User opens library view
-   → LibraryBrowser component
-
-2. Subscribe to sessions list
-   → useQuery(api.queries.listSessions, { filter, searchTerm })
-   → Convex runs query, returns results
-
-3. User types search query
-   → Component state updates, useQuery automatically re-runs with new params
-   → Convex query filters sessions by title/transcript text match
-
-4. Background: Another user creates session
-   → Mutation runs: createSession()
-   → Convex detects query dependency
-   → Pushes update to ALL subscribed clients
-
-5. UI updates automatically
-   → LibraryBrowser receives new session in results
-   → React re-renders list with new item
+PageTransitionProvider
+  AnimatePresence mode="wait"
+    motion.div key={segment}      <-- keyed on current route segment
+      FrozenRouter                <-- preserves router context during exit
+        {children}                <-- actual page content
 ```
 
-**Real-time guarantee:** All clients see the same database snapshot simultaneously. No eventual consistency issues.
+**How it works:**
 
-## Authentication Architecture: Deepgram Token Security
+1. Uses `useSelectedLayoutSegment()` (from `next/navigation`) to detect the current route segment. For the `(app)` layout, this returns `"transcripts"`, `"record"`, `"settings"`, etc.
 
-**Problem:** Exposing Deepgram API keys in browser code is a security risk.
+2. `AnimatePresence` with `mode="wait"` ensures the exiting page completes its exit animation before the entering page mounts.
 
-**Solution:** Temporary token pattern (verified with Deepgram official docs)
+3. The `motion.div` is keyed on `segment`, so when the segment changes (e.g., navigating from `/transcripts` to `/record`), AnimatePresence sees a new key, triggers the exit animation on the old content, then mounts the new content with an enter animation.
 
-**Confidence: HIGH**
+4. `FrozenRouter` wraps children inside the motion.div to prevent the Next.js router context from updating during the exit animation (which would cause the exiting page to flash the new page's content).
 
-### Pattern: Backend Token Proxy
+**Critical implementation detail -- FrozenRouter:**
 
 ```typescript
-// Convex action (backend)
-export const generateDeepgramToken = action({
-  handler: async (ctx) => {
-    // Main API key stored in Convex environment variables
-    const apiKey = process.env.DEEPGRAM_API_KEY;
-
-    // Call Deepgram token API
-    const response = await fetch(
-      'https://api.deepgram.com/v1/auth/token',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ttl_seconds: 30, // 30 second TTL (minimum recommended)
-          scopes: ['usage:write'], // Only streaming permissions
-        }),
-      }
-    );
-
-    const { token } = await response.json();
-    return token; // Temporary token, safe to send to browser
-  },
-});
-
-// Browser client
-const tempToken = await convex.action(api.actions.generateDeepgramToken);
-const socket = new WebSocket(
-  'wss://api.deepgram.com/v1/listen',
-  ['token', tempToken]
-);
+import { LayoutRouterContext } from
+  "next/dist/shared/lib/app-router-context.shared-runtime";
 ```
 
-**Security properties:**
-- Main API key never leaves Convex backend
-- Temporary tokens expire in 30 seconds (configurable up to 1 hour)
-- Scopes limit token to specific operations
-- Token refresh handled automatically by client when recording >30s
+This import is verified to exist in Next.js 15.5.12 (the version installed in this project). The `LayoutRouterContext` is a React context that the App Router uses to pass segment data to child components. FrozenRouter intercepts this context and provides the previous value during exit animations.
 
-**Alternative (NOT recommended for browser):** Proxy WebSocket through backend server. More complex, adds latency, but provides full control over audio stream.
+**Confidence:** HIGH -- This pattern is the standard community solution for App Router page transitions. The `LayoutRouterContext` import path is verified against the installed Next.js version. However, this is an internal API and could change in future Next.js versions.
 
-## Convex Schema Design
+### 2. AnimatedTabContent (NEW)
 
-**Confidence: HIGH** (follows Convex best practices)
+**File:** `app/components/transitions/animated-tab-content.tsx`
+**Type:** Client component
+**Purpose:** Provides slide/crossfade transitions when switching between tabs.
 
-### Core Tables
+**Architecture:**
+
+```
+AnimatedTabContent
+  AnimatePresence mode="wait" initial={false}
+    motion.div key={activeTab}
+      {children}
+```
+
+**How it works:**
+
+This is simpler than page transitions because tab switching happens within a single page component (no router involvement). The `activeTab` state variable already exists in both the transcript detail page and the record page. Wrapping the tab content area with `AnimatePresence` and keying on the active tab provides enter/exit animations.
+
+**Direction-aware sliding:** Track the previous tab index to determine slide direction. If switching from tab 0 to tab 1, slide content left (new content enters from right). If switching from tab 1 to tab 0, slide content right (new content enters from left).
+
+**Where used:**
+- `app/(app)/transcripts/[id]/page.tsx` -- Transcript/Summary tab switcher (lines 698-744)
+- `app/(app)/record/page.tsx` -- Microphone/Upload tab switcher (lines 116-185, 188-287)
+
+**Confidence:** HIGH -- Standard Motion pattern, no App Router complications. `AnimatePresence` with keyed children is the textbook approach for tab transitions.
+
+### 3. AnimatedTranscriptList (NEW or WRAPPER)
+
+**File:** `app/components/library/animated-transcript-list.tsx`
+**Type:** Client component
+**Purpose:** Animates transcript cards as they enter/exit during search filtering.
+
+**Architecture decision: Wrapper, not replacement.** The existing `TranscriptCard` component has complex swipe-to-delete logic, star toggling, and tag display. Rather than modifying it to be a motion component, wrap each card in an `AnimatedListItem` that handles the motion animation layer.
+
+```
+AnimatedTranscriptList
+  AnimatePresence mode="popLayout"      <-- popLayout for smooth reflow
+    AnimatedListItem key={transcript._id}  <-- one per card
+      motion.div layout                    <-- layout prop for position animation
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        TranscriptCard                     <-- existing component, unchanged
+```
+
+**Why `mode="popLayout"`:** When a card is filtered out, `popLayout` immediately removes it from document flow so remaining cards can smoothly reflow to new positions. The removed card plays its exit animation from its "popped" position (overlaid). This pairs perfectly with the `layout` prop on remaining cards, which animates them to their new positions.
+
+**Why wrapper instead of modifying TranscriptCard:** TranscriptCard already uses refs, touch handlers, and translateX transforms for swipe-to-delete. Adding motion props directly would create conflicts between Motion's transform management and the manual swipe transforms. A wrapper keeps concerns separated.
+
+**Ref forwarding requirement:** `AnimatePresence` with `popLayout` mode requires direct children to forward refs. `AnimatedListItem` must use `React.forwardRef`.
+
+**Confidence:** HIGH -- This is a well-documented Motion pattern. The wrapper approach avoids conflicts with existing swipe logic.
+
+### 4. useStableQuery Hook (NEW)
+
+**File:** `app/lib/hooks/use-stable-query.ts`
+**Type:** Custom hook
+**Purpose:** Prevents flash-of-undefined when Convex query parameters change (fixes the search results flash bug).
+
+**The problem:** On the transcripts page, when the user types in search, `debouncedSearch` changes, which causes `useQuery(api.transcripts.search, { searchTerm: debouncedSearch })` to return `undefined` momentarily while the new query loads. During this undefined window, the component falls back to showing `filteredTranscripts` (the unfiltered list), causing a visible flash of all transcripts before the filtered results appear.
+
+**The solution:**
 
 ```typescript
-// convex/schema.ts
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+export const useStableQuery = ((name, ...args) => {
+  const result = useQuery(name, ...args);
+  const stored = useRef(result);
 
-export default defineSchema({
-  // Recording sessions (one per recording or file upload)
-  sessions: defineTable({
-    title: v.string(), // User-editable title
-    type: v.union(v.literal("realtime"), v.literal("upload")),
-    status: v.union(
-      v.literal("recording"),
-      v.literal("processing"),
-      v.literal("complete"),
-      v.literal("error")
-    ),
-    userId: v.string(), // Convex Auth user ID
-    createdAt: v.number(), // timestamp
-    duration: v.optional(v.number()), // seconds
-    wordCount: v.optional(v.number()),
-  })
-    .index("by_user", ["userId", "createdAt"])
-    .searchIndex("by_title", {
-      searchField: "title",
-      filterFields: ["userId"],
-    }),
-
-  // Individual transcript words (many per session)
-  words: defineTable({
-    sessionId: v.id("sessions"),
-    word: v.string(),
-    confidence: v.number(), // 0.0 - 1.0
-    start: v.number(), // timestamp in seconds
-    end: v.number(),
-    isFinal: v.boolean(), // Deepgram's is_final flag
-    speaker: v.optional(v.number()), // if diarization enabled
-  })
-    .index("by_session", ["sessionId", "start"])
-    .searchIndex("by_content", {
-      searchField: "word",
-      filterFields: ["sessionId"],
-    }),
-
-  // AI-generated summaries (one per session)
-  summaries: defineTable({
-    sessionId: v.id("sessions"),
-    overview: v.string(), // 2-3 sentence overview
-    keyPoints: v.array(v.string()), // Bullet points
-    actionItems: v.array(v.string()), // Extracted action items
-    generatedAt: v.number(),
-    model: v.string(), // "claude-3-5-sonnet-20241022"
-  }).index("by_session", ["sessionId"]),
-
-  // Audio files (for uploaded recordings)
-  audioFiles: defineTable({
-    sessionId: v.id("sessions"),
-    storageId: v.string(), // Convex storage ID
-    filename: v.string(),
-    mimeType: v.string(),
-    size: v.number(), // bytes
-    uploadedAt: v.number(),
-  }).index("by_session", ["sessionId"]),
-});
-```
-
-### Design Rationale
-
-**Words table separate from sessions:**
-- Real-time streaming requires frequent writes (many per second)
-- Convex mutations are transactional; writing individual words is more efficient than updating a large array
-- Queries can efficiently fetch words by session via index
-- Search across transcript content enabled via searchIndex
-
-**Status field for sessions:**
-- Tracks progression: recording → processing → complete
-- Enables UI to show loading states
-- Error handling for failed transcriptions
-
-**Indexes strategy:**
-- `by_user + createdAt`: Fast library listing sorted by recency
-- `by_session + start`: Fast transcript reconstruction in chronological order
-- Search indexes: Full-text search on titles and transcript content
-
-**File size considerations:**
-- Audio files stored in Convex Storage (separate from database)
-- Only metadata (storageId, size) in database
-- 20MB limit for HTTP actions; use upload URLs for larger files
-
-## Offline Support (PWA Considerations)
-
-**Confidence: MEDIUM** (PWA patterns researched, not Convex-specific)
-
-### Offline Recording Strategy
-
-PWAs can record audio offline and sync when online:
-
-```
-1. User records while offline
-   → MediaRecorder captures audio
-   → Audio chunks buffered in IndexedDB
-
-2. User regains connectivity
-   → Service worker detects online event
-   → Background sync triggers upload
-
-3. Upload buffered audio
-   → Retrieve chunks from IndexedDB
-   → Combine into single file
-   → Upload to Convex storage
-   → Trigger Deepgram pre-recorded transcription
-```
-
-**Implementation pattern:**
-- Use IndexedDB to store audio blobs during offline recording
-- Service Worker handles background sync
-- Upload uses same file upload flow as manual uploads
-- Requires careful chunk management (memory limits)
-
-**Caveat:** Real-time Deepgram streaming requires connectivity. Offline mode only supports "record now, transcribe later" use case.
-
-### Offline Browsing
-
-Convex's real-time subscriptions work offline with cached data:
-
-- Convex client SDK caches query results in browser
-- UI renders from cache when offline
-- Read-only mode (no mutations possible offline)
-- Automatic sync when connection restored
-
-**Note:** Convex doesn't currently have built-in optimistic updates for offline-first mutations. For full offline editing, would need custom implementation with conflict resolution.
-
-## Build Order Recommendations
-
-**Phase 1: Core Real-Time Flow**
-1. Convex schema (sessions, words tables)
-2. Basic mutations (createSession, saveTranscriptWord)
-3. Deepgram token generation action
-4. Browser AudioRecorder component
-5. WebSocket streaming to Deepgram
-6. Real-time TranscriptView with useQuery subscription
-
-**Why this order:** Establishes core value proposition (real-time transcription) with minimal dependencies. Tests Convex reactivity and Deepgram streaming together.
-
-**Phase 2: File Upload & Batch Transcription**
-1. audioFiles table schema
-2. File upload mutation (generateUploadUrl, saveAudioFile)
-3. Deepgram pre-recorded transcription action
-4. FileUploader component
-5. Progress indicators and error handling
-
-**Why this order:** Builds on real-time foundation. Reuses transcript display UI. Tests Convex storage and Actions with external API calls.
-
-**Phase 3: AI Summarization**
-1. summaries table schema
-2. Claude API integration action
-3. Summary generation with streaming (optional)
-4. SummaryPanel component
-5. Summary display UI
-
-**Why this order:** Requires complete transcripts (depends on Phase 1/2). Isolated feature, doesn't block other work.
-
-**Phase 4: Library & Search**
-1. Search indexes on schema
-2. Query functions with filters
-3. LibraryBrowser component
-4. Search/filter UI
-
-**Why this order:** Requires existing sessions/transcripts to be useful. Benefits from all previous phases being complete.
-
-**Phase 5: PWA Offline Support** (optional)
-1. Service worker setup
-2. IndexedDB audio buffering
-3. Background sync
-4. Offline UI indicators
-
-**Why this order:** Polish feature after core functionality works. Complex, can be deprioritized for MVP.
-
-## Patterns to Follow
-
-### Pattern 1: Client-Side WebSocket, Server-Side Processing
-
-**What:** Browser manages WebSocket connections to external services, Convex handles all processing and persistence.
-
-**When:** Real-time external services (Deepgram streaming) where latency matters.
-
-**Why:** Minimizes hops (browser ↔ Deepgram direct is faster than browser ↔ backend ↔ Deepgram). Security maintained via temporary tokens.
-
-**Example:**
-```typescript
-// Browser component
-const socket = new WebSocket(deepgramUrl, ['token', tempToken]);
-
-socket.onmessage = (event) => {
-  const { transcript, is_final } = JSON.parse(event.data);
-
-  // Immediately save to Convex
-  convex.mutation(api.mutations.saveWord, {
-    sessionId,
-    word: transcript,
-    isFinal: is_final,
-  });
-};
-```
-
-### Pattern 2: Action → RunMutation for External API Results
-
-**What:** Actions fetch from external APIs, then call mutations to save results.
-
-**When:** Any external API integration (Claude, Deepgram pre-recorded).
-
-**Why:** Mutations are transactional and auto-retryable. Actions are not. Separating concerns ensures database writes are reliable even if action partially fails.
-
-**Example:**
-```typescript
-// Convex action
-export const generateSummary = action({
-  handler: async (ctx, { sessionId }) => {
-    // External API call (not retryable)
-    const transcript = await ctx.runQuery(api.queries.getTranscript, { sessionId });
-    const summary = await callClaudeAPI(transcript);
-
-    // Database write (transactional, retryable)
-    await ctx.runMutation(api.mutations.saveSummary, {
-      sessionId,
-      ...summary,
-    });
-  },
-});
-```
-
-### Pattern 3: Granular Mutations for Real-Time Updates
-
-**What:** Save individual words as separate mutation calls instead of batching.
-
-**When:** Real-time streaming where UI updates incrementally.
-
-**Why:** Convex's reactivity shines with granular updates. Each word appears in UI immediately via subscription. Batching would delay updates.
-
-**Example:**
-```typescript
-// Good: Granular (UI updates per word)
-socket.onmessage = (event) => {
-  convex.mutation(api.mutations.saveWord, { ...event.data });
-};
-
-// Bad: Batching (UI updates only after buffer full)
-const buffer = [];
-socket.onmessage = (event) => {
-  buffer.push(event.data);
-  if (buffer.length >= 10) {
-    convex.mutation(api.mutations.saveWords, { words: buffer });
-    buffer = [];
+  if (result !== undefined) {
+    stored.current = result;
   }
-};
+
+  return stored.current;
+}) as typeof useQuery;
 ```
 
-**Caveat:** Granular mutations generate more database transactions. For high-throughput scenarios (>100 words/sec), consider hybrid approach with small batches.
+When query args change, the hook continues returning the previous result until the new result arrives. This eliminates the flash because the component never sees `undefined` between valid results.
 
-### Pattern 4: Temporary Token Refresh
+**Integration point:** Replace `useQuery` with `useStableQuery` for the search results query in `app/(app)/transcripts/page.tsx` (line 27-29). The `allTranscripts` query does NOT need this treatment because its args never change.
 
-**What:** Refresh Deepgram temporary tokens before expiry during long recordings.
+**Confidence:** HIGH -- This pattern is documented on the official Convex blog (stack.convex.dev). It is a direct application of React's `useRef` for value persistence.
 
-**When:** Recording sessions longer than token TTL (30 seconds default).
+## Integration Points with Existing Components
 
-**Why:** Prevents WebSocket disconnection mid-recording.
+### Modified Components (Minimal Changes)
 
-**Example:**
-```typescript
-const TOKEN_TTL = 30000; // 30 seconds
-let tokenExpiresAt = Date.now() + TOKEN_TTL;
+| Component | File | Change | Reason |
+|-----------|------|--------|--------|
+| AppLayout | `app/(app)/layout.tsx` | Wrap `{children}` with `PageTransitionProvider` | Page transition mount point |
+| TranscriptsPage | `app/(app)/transcripts/page.tsx` | Replace card list div with `AnimatedTranscriptList`; use `useStableQuery` for search | List filtering animation + flash fix |
+| TranscriptDetailContent | `app/(app)/transcripts/[id]/page.tsx` | Wrap tab content area with `AnimatedTabContent` | Tab slide transitions |
+| RecordPage | `app/(app)/record/page.tsx` | Wrap tab content area with `AnimatedTabContent` | Tab slide transitions |
 
-const refreshToken = async () => {
-  const newToken = await convex.action(api.actions.generateDeepgramToken);
-  // Close old socket, open new one with fresh token
-  socket.close();
-  socket = new WebSocket(deepgramUrl, ['token', newToken]);
-  tokenExpiresAt = Date.now() + TOKEN_TTL;
-};
+### Unmodified Components
 
-setInterval(() => {
-  if (Date.now() > tokenExpiresAt - 5000) { // Refresh 5s before expiry
-    refreshToken();
-  }
-}, 1000);
+| Component | File | Why No Changes |
+|-----------|------|----------------|
+| FABMenu | `app/components/navigation/fab-menu.tsx` | Already has CSS keyframe animations; stays outside page transitions |
+| TranscriptCard | `app/components/library/transcript-card.tsx` | Wrapped by AnimatedListItem; internal logic unchanged |
+| SearchBar | `app/components/library/search-bar.tsx` | No animation needed on the input itself |
+| FilterTabs | `app/components/library/filter-tabs.tsx` | Already has CSS transition on colors; no additional animation needed |
+| AudioPlayer | `app/components/audio/audio-player.tsx` | Fixed-position element; unrelated to transitions |
+| Root layout | `app/layout.tsx` | Server Component; animation is client-only |
+| ConvexClientProvider | `app/ConvexClientProvider.tsx` | Provider; no visual component |
+
+## Data Flow: Animated Search Filtering
+
+This is the most complex animation scenario because it combines Convex real-time data, debounced user input, and animated list rendering.
+
+### Current Data Flow (with flash bug)
+
 ```
+User types in SearchBar
+  -> searchInput state updates
+  -> useDebounce(searchInput, 300) -> debouncedSearch
+  -> useQuery(api.transcripts.search, { searchTerm: debouncedSearch })
+  -> returns undefined (flash!) then results
+  -> displayTranscripts computed from results
+  -> map() renders TranscriptCard list
+```
+
+### Fixed + Animated Data Flow
+
+```
+User types in SearchBar
+  -> searchInput state updates
+  -> useDebounce(searchInput, 300) -> debouncedSearch
+  -> useStableQuery(api.transcripts.search, { searchTerm: debouncedSearch })
+  -> returns PREVIOUS results until new ones arrive (no flash)
+  -> displayTranscripts computed from stable results
+  -> AnimatedTranscriptList renders with AnimatePresence
+    -> Cards leaving: exit animation (fade + scale down)
+    -> Cards staying: layout animation (smooth position change)
+    -> Cards entering: enter animation (fade + scale up)
+```
+
+### Timing Considerations
+
+- **Debounce delay (300ms):** Already in place. Prevents rapid-fire queries. Good default.
+- **Animation duration:** Keep enter/exit at 150-200ms. Must be fast enough that results feel responsive but visible enough to be perceived as intentional.
+- **Total perceived latency:** 300ms debounce + Convex query time (~50-100ms for local) + 200ms animation = ~600ms from last keystroke to final animated state. This is acceptable for search UX.
+
+## Animation Specifications
+
+### Page Transitions
+
+| Property | Enter | Exit | Duration | Easing |
+|----------|-------|------|----------|--------|
+| opacity | 0 -> 1 | 1 -> 0 | 200ms | easeOut |
+| y | 8px -> 0 | 0 -> -8px | 200ms | easeOut |
+
+These are subtle -- a slight upward slide with fade. Heavy page transitions (full slides, rotations) feel wrong for a utility app. The goal is "premium and subtle," not "flashy."
+
+### Tab Slide Transitions
+
+| Property | Enter (forward) | Exit (forward) | Duration | Easing |
+|----------|-----------------|-----------------|----------|--------|
+| opacity | 0 -> 1 | 1 -> 0 | 200ms | easeInOut |
+| x | 24px -> 0 | 0 -> -24px | 200ms | easeInOut |
+
+Direction reverses when going backward (tab index decreasing). The x offset is small (24px, not full-width) for a subtle, smooth feel.
+
+### List Item Enter/Exit
+
+| Property | Enter | Exit | Duration | Easing |
+|----------|-------|------|----------|--------|
+| opacity | 0 -> 1 | 1 -> 0 | 150ms | easeOut |
+| scale | 0.96 -> 1 | 1 -> 0.96 | 150ms | easeOut |
+| y | 8px -> 0 | -- | 150ms | easeOut |
+
+List items use `layout` prop for position animation (spring-based, default Motion spring). The `popLayout` mode on AnimatePresence means exiting items animate out while remaining items smoothly reposition.
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Storing Audio in Database
+### Anti-Pattern 1: Using template.tsx for Page Transitions
 
-**What:** Saving raw audio files as bytes in Convex database tables.
+**What:** Next.js template.tsx re-renders on every navigation, which seems ideal for transitions.
+**Why bad:** template.tsx only supports enter animations (via `initial` + `animate`). It cannot do exit animations because the old template instance is already unmounted by the time the new one renders. There is no `AnimatePresence` wrapper to detect removal.
+**Instead:** Use the FrozenRouter + AnimatePresence pattern in `layout.tsx`, which persists across navigation and can detect segment changes.
 
-**Why bad:** Database tables are optimized for structured data. Large blobs degrade performance, waste database storage, and hit size limits.
+### Anti-Pattern 2: Animating the TranscriptCard Component Directly
 
-**Instead:** Use Convex Storage for audio files, store only storageId in database.
+**What:** Adding `motion.div` props directly to the TranscriptCard's root element.
+**Why bad:** TranscriptCard already manages its own `transform: translateX()` for swipe-to-delete. Motion would conflict with this by trying to control the same transform property. The swipe animation uses manual state (`offsetX`) and inline styles, which would fight with Motion's animation system.
+**Instead:** Wrap TranscriptCard in a separate `AnimatedListItem` component that handles enter/exit/layout animations at the wrapper level, leaving TranscriptCard's internal transforms untouched.
 
-```typescript
-// Bad
-audioFiles: defineTable({
-  sessionId: v.id("sessions"),
-  audioData: v.bytes(), // DON'T DO THIS
-})
+### Anti-Pattern 3: Animating Inside Convex Query Loading States
 
-// Good
-audioFiles: defineTable({
-  sessionId: v.id("sessions"),
-  storageId: v.string(), // Reference to Convex Storage
-})
+**What:** Showing animation while waiting for Convex data to load (e.g., animating skeleton loaders between real data).
+**Why bad:** Convex queries are real-time subscriptions. The initial load is the only "loading" state; after that, data updates push automatically. Adding animation delays to subscription updates makes the UI feel sluggish instead of real-time.
+**Instead:** Only animate the transition between data states (old results -> new results), not the loading state. Use `useStableQuery` to bridge the gap so there is no visible loading flash.
+
+### Anti-Pattern 4: Using View Transitions API
+
+**What:** Using the experimental `viewTransition` flag in `next.config.ts` or the `next-view-transitions` package.
+**Why bad:** The View Transitions API is experimental in Next.js, only works in Chromium browsers (not Safari, which is the primary browser for this iOS-targeted PWA), and the Next.js integration is explicitly marked as not recommended for production.
+**Instead:** Use Motion (Framer Motion) which works in all browsers via JavaScript-based animations and has a mature, stable API.
+
+### Anti-Pattern 5: Heavy Page Transitions
+
+**What:** Full-page slides, 3D transforms, or long-duration (500ms+) transitions.
+**Why bad:** This is a utility app for transcription. Users navigate frequently between library, record, and transcript detail. Long transitions add friction. Mobile users are especially sensitive to navigation delays.
+**Instead:** Keep page transitions under 200ms with subtle opacity and minimal position changes. The transitions should feel "effortless" rather than "impressive."
+
+## Build Order (Dependency-Informed)
+
+The following order is based on actual code dependencies between the components.
+
+### Phase 1: Foundation (No Visual Changes Yet)
+
+1. **Install Motion:** `npm install motion`
+2. **Create `useStableQuery` hook** -- standalone utility, no UI changes
+3. **Create `PageTransitionProvider` + `FrozenRouter`** -- standalone component, not yet integrated
+
+**Rationale:** These are the building blocks. None of them change the UI yet, so they can be built and tested in isolation.
+
+### Phase 2: Search Flash Fix + List Animations
+
+4. **Fix search flash:** Replace `useQuery` with `useStableQuery` for search results in TranscriptsPage
+5. **Create `AnimatedListItem` wrapper** and **`AnimatedTranscriptList`**
+6. **Integrate into TranscriptsPage:** Replace the card list rendering with AnimatedTranscriptList
+
+**Rationale:** The search flash is a bug fix (not a new feature) and should be addressed first. List animations build on `useStableQuery` because the flash fix ensures stable data for animation. This phase produces the highest-impact visual improvement (animated card filtering).
+
+### Phase 3: Tab Animations
+
+7. **Create `AnimatedTabContent`** component
+8. **Integrate into transcript detail page** (Transcript/Summary tabs)
+9. **Integrate into record page** (Microphone/Upload tabs)
+
+**Rationale:** Tab animations are self-contained within their respective pages and have no dependencies on the page transition system. They can be built independently.
+
+### Phase 4: Page Transitions
+
+10. **Integrate `PageTransitionProvider`** into `(app)/layout.tsx`
+11. **Test across all routes** (transcripts, record, settings, transcript detail)
+
+**Rationale:** Page transitions are the riskiest feature because they depend on Next.js internal APIs (`LayoutRouterContext`). They are also the most architecturally invasive (modifying the layout component). Building them last means the other animations are already working and won't be destabilized by layout changes. If page transitions prove problematic, the other animations still ship.
+
+## File Structure Summary
+
+### New Files
+
+```
+app/
+  components/
+    transitions/
+      page-transition-provider.tsx    -- FrozenRouter + AnimatePresence wrapper
+      animated-tab-content.tsx        -- Tab slide transition wrapper
+  lib/
+    hooks/
+      use-stable-query.ts             -- Stable Convex query for flash prevention
+  components/
+    library/
+      animated-transcript-list.tsx    -- AnimatePresence list with layout animations
 ```
 
-### Anti-Pattern 2: Proxying WebSocket Through Backend Unnecessarily
+### Modified Files
 
-**What:** Browser → Next.js API route → Deepgram instead of Browser → Deepgram directly.
-
-**Why bad:** Adds latency (extra hop), increases backend complexity, uses backend resources for streaming, no security benefit if using temporary tokens.
-
-**Instead:** Use temporary tokens and direct browser-to-Deepgram connection.
-
-**Exception:** If you need to process/transform audio before sending to Deepgram (e.g., noise reduction), backend proxy is justified.
-
-### Anti-Pattern 3: Polling for Real-Time Updates
-
-**What:** Using setInterval to re-fetch transcript data from Convex.
-
-**Why bad:** Wastes bandwidth, increases latency, misses Convex's real-time superpowers.
-
-**Instead:** Use useQuery subscriptions - Convex pushes updates automatically.
-
-```typescript
-// Bad
-useEffect(() => {
-  const interval = setInterval(async () => {
-    const words = await convex.query(api.queries.getWords, { sessionId });
-    setWords(words);
-  }, 1000);
-  return () => clearInterval(interval);
-}, []);
-
-// Good
-const words = useQuery(api.queries.getWords, { sessionId });
-// words automatically updates when database changes
+```
+app/(app)/layout.tsx                  -- Add PageTransitionProvider around {children}
+app/(app)/transcripts/page.tsx        -- Use useStableQuery, AnimatedTranscriptList
+app/(app)/transcripts/[id]/page.tsx   -- Use AnimatedTabContent for tabs
+app/(app)/record/page.tsx             -- Use AnimatedTabContent for tabs
+package.json                          -- Add motion dependency
 ```
 
-### Anti-Pattern 4: Synchronous Action Chains
+## Technology Decision
 
-**What:** Actions calling other actions sequentially when they could run in parallel.
+**Library:** Motion (the `motion` npm package, formerly Framer Motion)
+**Version:** Latest (12.x as of research date)
+**Install:** `npm install motion`
+**Import:** `import { motion, AnimatePresence } from "motion/react"`
 
-**Why bad:** Actions have 10-minute timeout. Sequential calls add latency. Failure of one blocks others.
+**Why Motion over alternatives:**
 
-**Instead:** Use Promise.all for independent operations.
+| Criterion | Motion | CSS Transitions | GSAP | View Transitions API |
+|-----------|--------|-----------------|------|---------------------|
+| Exit animations | AnimatePresence | Requires manual DOM management | Timeline-based, manual | Browser-native but Chromium-only |
+| Layout animations | `layout` prop (automatic FLIP) | Not possible | FlipPlugin (paid) | Limited |
+| React integration | First-class (motion.div) | Via className toggling | Via refs and useEffect | Experimental in React |
+| Bundle size | ~33KB gzipped | 0KB | ~27KB core | 0KB |
+| Safari support | Full | Full | Full | None |
+| Learning curve | Low (declarative) | Low | Medium (imperative) | Low but limited API |
 
-```typescript
-// Bad: Sequential (slow)
-export const processSession = action({
-  handler: async (ctx, { sessionId }) => {
-    await ctx.runAction(api.actions.transcribeAudio, { sessionId });
-    await ctx.runAction(api.actions.generateSummary, { sessionId });
-    await ctx.runAction(api.actions.extractKeywords, { sessionId });
-  },
-});
-
-// Good: Parallel (fast)
-export const processSession = action({
-  handler: async (ctx, { sessionId }) => {
-    await Promise.all([
-      ctx.runAction(api.actions.transcribeAudio, { sessionId }),
-      ctx.runAction(api.actions.generateSummary, { sessionId }),
-      ctx.runAction(api.actions.extractKeywords, { sessionId }),
-    ]);
-  },
-});
-```
-
-**Caveat:** Some operations have dependencies (e.g., summarization requires transcript). Only parallelize truly independent work.
-
-### Anti-Pattern 5: Embedding API Keys in Browser Code
-
-**What:** Hardcoding Deepgram or Claude API keys in Next.js client components.
-
-**Why bad:** Keys exposed in browser bundle, visible in DevTools, anyone can steal and abuse.
-
-**Instead:**
-- Deepgram: Use temporary token pattern (Convex action generates token)
-- Claude: Always call from Convex actions (server-side only)
-
-```typescript
-// Bad: API key in browser
-const DEEPGRAM_API_KEY = "your-key-here"; // DON'T DO THIS
-const socket = new WebSocket(url, ['token', DEEPGRAM_API_KEY]);
-
-// Good: Temporary token from backend
-const tempToken = await convex.action(api.actions.generateDeepgramToken);
-const socket = new WebSocket(url, ['token', tempToken]);
-```
-
-## Scalability Considerations
-
-| Concern | At 100 users | At 10K users | At 1M users |
-|---------|--------------|--------------|-------------|
-| **Deepgram concurrent connections** | 5-10 concurrent streams | 100+ concurrent (upgrade plan) | Custom enterprise plan required |
-| **Convex database** | Default limits sufficient | Monitor table sizes, optimize indexes | Partition by user, archive old sessions |
-| **Convex storage** | Unlimited files, pay per GB | Consider CDN for frequently accessed audio | Implement lifecycle policies, delete old files |
-| **Claude API rate limits** | Tier 1 (50 req/min) sufficient | Tier 2+ (1000 req/min) | Queue summarization requests |
-| **WebSocket connections (Convex)** | No limit, real-time updates work | No limit, Convex handles auto-scaling | No changes needed |
-| **Browser memory (MediaRecorder)** | 1-hour recordings fit in memory | Same (per-user concern, not aggregate) | Implement chunked upload for >1hr recordings |
-
-**Key insight:** Convex scales automatically (serverless). External APIs (Deepgram, Claude) require plan upgrades as usage grows.
-
-**Optimization strategy:**
-1. **Start:** Default plans for all services
-2. **10K users:** Monitor Deepgram concurrency, add indexes to Convex
-3. **100K+ users:** Batch summarization, CDN for audio playback, archive old transcripts
-4. **1M+ users:** Enterprise plans, sharding strategies, data retention policies
-
-## Technology-Specific Patterns
-
-### Next.js App Router + Convex Integration
-
-**ConvexClientProvider wrapper:**
-```typescript
-// app/providers.tsx
-"use client";
-
-import { ConvexProvider, ConvexReactClient } from "convex/react";
-
-const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-export function Providers({ children }: { children: React.ReactNode }) {
-  return <ConvexProvider client={convex}>{children}</ConvexProvider>;
-}
-
-// app/layout.tsx
-import { Providers } from "./providers";
-
-export default function RootLayout({ children }) {
-  return (
-    <html>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
-```
-
-**Client vs Server Components:**
-- Server Components: Static pages, SEO content, initial data loading
-- Client Components: Real-time UI (`useQuery`), WebSocket management, interactive controls
-
-**Rule:** Any component using Convex hooks (`useQuery`, `useMutation`, `useAction`) must be a Client Component (`"use client"`).
-
-### Deepgram SDK vs Raw WebSocket
-
-**Options:**
-1. **Deepgram JavaScript SDK** (@deepgram/sdk)
-2. **Raw WebSocket** (native browser API)
-
-**Recommendation:** Raw WebSocket for browser clients
-
-**Rationale:**
-- SDK is optimized for Node.js backend use
-- Browser only needs WebSocket connection (simple)
-- Avoiding SDK reduces bundle size
-- Direct control over connection lifecycle
-
-**SDK usage for Convex actions:**
-```typescript
-import { createClient } from "@deepgram/sdk";
-
-export const transcribeFile = action({
-  handler: async (ctx, { storageId }) => {
-    const deepgram = createClient(process.env.DEEPGRAM_API_KEY!);
-    const audioUrl = await ctx.storage.getUrl(storageId);
-
-    const { result } = await deepgram.listen.prerecorded.transcribeUrl({
-      url: audioUrl,
-    }, {
-      model: "nova-3",
-      smart_format: true,
-    });
-
-    // Process result...
-  },
-});
-```
-
-## Common Integration Gotchas
-
-### Gotcha 1: Deepgram WebSocket Keepalive
-
-**Problem:** Deepgram closes connection after ~10 seconds of silence.
-
-**Solution:** Send keepalive messages during recording pauses.
-
-```typescript
-const KEEPALIVE_INTERVAL = 5000; // 5 seconds
-
-const keepalive = setInterval(() => {
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: "KeepAlive" }));
-  }
-}, KEEPALIVE_INTERVAL);
-
-// Clean up on close
-socket.onclose = () => clearInterval(keepalive);
-```
-
-### Gotcha 2: Convex Action Timeout (10 minutes)
-
-**Problem:** Long audio files (>10 min) cause Deepgram transcription action to timeout.
-
-**Solution:** Use Deepgram's callback URL feature for async processing.
-
-```typescript
-// Instead of waiting for result
-const { result } = await deepgram.listen.prerecorded.transcribeUrl({
-  url: audioUrl,
-}, {
-  callback: "https://your-app.convex.site/deepgram-callback",
-});
-
-// Set up HTTP action to receive callback
-export const deepgramCallback = httpAction(async (ctx, request) => {
-  const result = await request.json();
-  const { sessionId } = parseCallbackData(result);
-
-  await ctx.runMutation(api.mutations.saveTranscriptBatch, {
-    sessionId,
-    words: result.results.channels[0].alternatives[0].words,
-  });
-
-  return new Response("OK", { status: 200 });
-});
-```
-
-### Gotcha 3: MediaRecorder Format Compatibility
-
-**Problem:** Deepgram may not support all browser-native audio formats.
-
-**Solution:** Specify compatible MIME type when creating MediaRecorder.
-
-```typescript
-const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-  ? 'audio/webm;codecs=opus'
-  : 'audio/webm';
-
-const mediaRecorder = new MediaRecorder(stream, { mimeType });
-```
-
-**Verified compatible formats:**
-- `audio/webm;codecs=opus` (Chrome, Edge)
-- `audio/mp4` (Safari)
-- `audio/wav` (universal, but larger file size)
-
-### Gotcha 4: Convex Upload URL Expiry
-
-**Problem:** Upload URLs expire in 1 hour. User delay causes upload failure.
-
-**Solution:** Generate URL immediately before upload, not during component mount.
-
-```typescript
-// Bad: Generate on mount (user might delay upload)
-useEffect(() => {
-  const url = await convex.mutation(api.mutations.generateUploadUrl);
-  setUploadUrl(url);
-}, []);
-
-// Good: Generate when user selects file
-const handleFileSelect = async (file: File) => {
-  const url = await convex.mutation(api.mutations.generateUploadUrl);
-  await uploadFile(url, file);
-};
-```
+Motion wins because: (1) `AnimatePresence` is the only declarative solution for exit animations in React, (2) the `layout` prop provides automatic FLIP animations for list reordering which would require significant manual code otherwise, (3) Safari support is critical for this iOS-first PWA, and (4) the declarative API (`initial`, `animate`, `exit` props) integrates naturally with React's rendering model.
 
 ## Sources
 
-### Deepgram Documentation
-- [Real-Time TTS with WebSockets](https://developers.deepgram.com/docs/tts-websocket-streaming)
-- [Using Lower-Level Websockets with the Streaming API](https://developers.deepgram.com/docs/lower-level-websockets)
-- [Get Live Speech Transcriptions In Your Browser](https://deepgram.com/learn/live-transcription-mic-browser)
-- [Build a Real-Time Transcription App with React and Deepgram](https://deepgram.com/learn/build-a-real-time-transcription-app-with-react-and-deepgram)
-- [Getting Started with Pre-Recorded Audio](https://developers.deepgram.com/docs/pre-recorded-audio)
-- [Token-Based Auth](https://developers.deepgram.com/guides/fundamentals/token-based-authentication)
-- [Browser Live Transcription - Protecting Your API Key](https://deepgram.com/learn/protecting-api-key)
+- [FrozenRouter page transition pattern for App Router](https://www.imcorfitz.com/posts/adding-framer-motion-page-transitions-to-next-js-app-router) -- Verified approach, HIGH confidence
+- [Next.js App Router page transition discussion](https://github.com/vercel/next.js/discussions/42658) -- Community validation of the FrozenRouter pattern
+- [next-transition-router package](https://github.com/ismamz/next-transition-router) -- Alternative approach evaluated and rejected (adds dependency for something achievable with ~50 lines of code)
+- [Motion (formerly Framer Motion) official site](https://motion.dev) -- Library home, current API
+- [List animation with AnimatePresence](https://theodorusclarence.com/blog/list-animation) -- Verified dual-div pattern for height animations, HIGH confidence
+- [useStableQuery pattern for Convex](https://stack.convex.dev/help-my-app-is-overreacting) -- Official Convex blog, HIGH confidence
+- [AnimatePresence popLayout mode example](https://framermotionexamples.com/example/framer-motion-animatepresence-poplayout-mode) -- Verified popLayout + layout prop combination
+- [LayoutRouterContext in Next.js source](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/app-router-context.shared-runtime.ts) -- Verified export exists; import path confirmed against installed Next.js 15.5.12
+- [Next.js viewTransition experimental config](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition) -- Evaluated and rejected (experimental, Chromium-only)
+- [Motion npm package](https://www.npmjs.com/package/motion) -- Verified current package name (not framer-motion), version 12.x
 
-### Convex Documentation
-- [Convex Overview](https://docs.convex.dev/understanding/)
-- [Actions](https://docs.convex.dev/functions/actions)
-- [Realtime](https://docs.convex.dev/realtime)
-- [File Storage](https://docs.convex.dev/file-storage)
-- [Uploading and Storing Files](https://docs.convex.dev/file-storage/upload-files)
-- [HTTP Actions](https://docs.convex.dev/functions/http-actions)
+## Confidence Assessment
 
-### Next.js & PWA
-- [Next.js Architecture in 2026 — Server-First, Client-Islands, and Scalable App Router Patterns](https://www.yogijs.tech/blog/nextjs-project-architecture-app-router)
-- [How to Handle WebSocket in Next.js](https://oneuptime.com/blog/post/2026-01-24-nextjs-websocket-handling/view)
-- [PWA with offline streaming](https://web.dev/articles/pwa-with-offline-streaming)
-- [Audio Recording PWA Demo](https://progressier.com/pwa-capabilities/audio-recording)
-
-### Architecture Patterns
-- [Top APIs and models for real-time speech recognition and transcription in 2026](https://www.assemblyai.com/blog/best-api-models-for-real-time-speech-recognition-and-transcription)
-- [The Ultimate 2026 Guide to Speech-to-Text (STT) APIs](https://aimlapi.com/blog/introduction-to-speech-to-text-technology)
+| Area | Confidence | Rationale |
+|------|------------|-----------|
+| Motion as animation library | HIGH | Dominant ecosystem choice, verified API, Safari support confirmed |
+| List filtering animations | HIGH | Standard AnimatePresence + layout prop pattern, well-documented |
+| Tab slide transitions | HIGH | Simple AnimatePresence with keyed children, no App Router complications |
+| useStableQuery flash fix | HIGH | Pattern from official Convex blog, mechanically simple |
+| Page transitions (FrozenRouter) | MEDIUM | Relies on internal Next.js API (`LayoutRouterContext`); works today on 15.5.12 but could break in future versions. Community-standard approach with no official alternative. |
+| Build order | HIGH | Based on actual code dependency analysis of the existing codebase |

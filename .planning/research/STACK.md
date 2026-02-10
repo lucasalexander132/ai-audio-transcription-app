@@ -1,648 +1,378 @@
-# Technology Stack
+# Technology Stack: Micro Interactions & Animations
 
-**Project:** AI Audio Transcription PWA
-**Researched:** February 9, 2026
+**Project:** Transcripts App (ai-audio-transcription-app)
+**Researched:** 2026-02-10
+**Scope:** Animation/micro-interaction capabilities for existing Next.js 15 + Tailwind CSS v3 PWA
 **Overall Confidence:** HIGH
 
-## Executive Summary
+---
 
-The 2025/2026 stack for a real-time audio transcription PWA leverages Next.js 16 (latest stable with Turbopack), Convex for real-time backend, Deepgram for streaming transcription, and Claude API for AI summaries. This stack prioritizes mobile-first PWA capabilities, real-time streaming performance, and modern developer experience.
+## Executive Recommendation
+
+Use a **two-tier animation strategy**:
+
+1. **Tailwind CSS transitions + `tailwindcss-animate`** for simple micro-interactions (hover states, button feedback, fade-ins, skeleton loading). Zero additional JS. Already integrated with existing stack.
+2. **Motion (formerly Framer Motion) with LazyMotion** for complex orchestrated animations (page transitions, AnimatePresence list filtering, layout animations). Use `domAnimation` feature bundle to keep added JS at ~20kb instead of ~34kb.
+
+This approach keeps the simple stuff CSS-only (zero JS overhead, guaranteed 60fps) and brings in Motion only where CSS cannot deliver (exit animations, layout animations, gesture-driven interactions, orchestrated sequences).
 
 ---
 
-## Core Framework
+## Current Project Stack (Context -- DO NOT CHANGE)
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Next.js | 16.1.6+ | React framework with App Router | Latest stable (Feb 2026) with Turbopack by default, React Compiler stable, superior PWA support via App Router, streaming-first architecture ideal for real-time transcription UI | HIGH |
-| React | 19.2 | UI library | Ships with Next.js 16, includes React Compiler optimizations | HIGH |
-| TypeScript | 5.9.3 | Type safety | Latest stable with ECMAScript deferred module evaluation, ~20% faster compilation | HIGH |
+| Technology | Version | Role |
+|------------|---------|------|
+| Next.js | ^15.1.4 | Framework (App Router) |
+| React | ^19.0.0 | UI library |
+| Tailwind CSS | ^3.4.1 | Styling |
+| Zustand | ^5.0.11 | State management |
+| Convex | ^1.31.7 | Real-time backend |
 
-**Rationale:**
-- Next.js 16 was released in late 2025 with production-ready Turbopack and React Compiler support
-- App Router's streaming capabilities align perfectly with real-time transcription UX
-- Turbopack provides significantly faster dev/build times compared to Webpack
-- React 19.2 includes performance improvements critical for handling live audio streams
+**Important:** The project uses Tailwind v3.4.1, NOT v4. All recommendations are v3-compatible.
+
+---
+
+## Tier 1: CSS-Only Animations (Simple Micro-Interactions)
+
+### Recommended: Tailwind CSS Built-in + `tailwindcss-animate` Plugin
+
+| Package | Version | Size | Purpose |
+|---------|---------|------|---------|
+| tailwindcss (already installed) | ^3.4.1 | 0kb added | `transition-*`, `duration-*`, `ease-*`, `animate-spin/pulse/bounce` |
+| `tailwindcss-animate` | ^1.0.7 | ~3kb CSS | `animate-in`, `animate-out`, `fade-in`, `slide-in-from-*`, `zoom-in` |
+
+**Why `tailwindcss-animate` (not `tw-animate-css`):** The project uses Tailwind v3.4.1. `tw-animate-css` is a Tailwind v4-only replacement. `tailwindcss-animate` is the correct v3-compatible plugin. It is the community standard (used by shadcn/ui) and provides enter/exit CSS animation utilities.
+
+**What this covers:**
+- Button hover/active/focus feedback (`transition-colors duration-150`)
+- Card hover elevations (`transition-shadow duration-200`)
+- Skeleton loading pulses (`animate-pulse`)
+- Toast/notification fade-ins (`animate-in fade-in duration-300`)
+- Tab underline slides (`transition-all duration-200`)
+- Input focus ring transitions (`transition-shadow duration-150`)
+- Opacity fades for content loading (`transition-opacity duration-300`)
+- Simple enter animations for elements appearing in the DOM
+
+**What this CANNOT cover:**
+- Exit animations when React unmounts a component (CSS has no way to delay unmounting)
+- Layout animations (elements smoothly moving to new positions after siblings are added/removed)
+- Orchestrated multi-element sequences with stagger
+- Page transition choreography (enter/exit between routes)
+
+**Performance:** CSS animations run on the compositor thread. They are GPU-accelerated for `transform` and `opacity` properties. Zero JavaScript execution cost. Guaranteed 60fps on mobile Safari when using only `transform` and `opacity`.
 
 **Installation:**
 ```bash
-npx create-next-app@latest --typescript
-npm install next@latest react@latest react-dom@latest
+npm install -D tailwindcss-animate
 ```
 
----
-
-## Backend & Real-Time Data
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Convex | 1.31.7+ | Real-time backend + database | Automatic WebSocket subscriptions, built-in real-time reactivity, native file storage for audio, integrated auth via Convex Auth, eliminates need for separate API layer | HIGH |
-| Convex Auth | beta | Authentication | Native integration with Convex, supports OAuth + magic links, server-side auth in Next.js App Router | MEDIUM |
-
-**Rationale:**
-- Convex's automatic dependency tracking means transcription updates propagate to all connected clients instantly
-- File storage built-in with unlimited file size support via upload URLs (critical for audio files)
-- WebSocket-based real-time subscriptions eliminate polling overhead
-- Query functions automatically rerun when dependencies change, perfect for updating transcription state
-- Convex Auth beta has stable Next.js server-side integration patterns
-
-**Key Patterns for Real-Time Transcription:**
-1. Store transcription segments in Convex database as they arrive
-2. Client subscriptions automatically update UI when new segments added
-3. File storage handles both recorded audio and uploaded files
-4. Server-side mutations coordinate Deepgram WebSocket lifecycle
-
-**Installation:**
-```bash
-npm install convex
-npx convex dev
-```
-
-**Sources:**
-- [Convex Real-Time Documentation](https://docs.convex.dev/realtime)
-- [Convex File Storage](https://docs.convex.dev/file-storage)
-- [Convex Auth for Next.js](https://labs.convex.dev/auth/authz/nextjs)
-
----
-
-## Audio Transcription
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| @deepgram/sdk | 4.11.3+ | Streaming speech-to-text | Industry-leading accuracy, native WebSocket streaming API, speaker diarization built-in, live transcription with <300ms latency | HIGH |
-
-**Rationale:**
-- Deepgram's streaming API uses WebSockets for full-duplex communication (send audio while receiving transcripts)
-- JavaScript SDK v3+ has modern async/await API with automatic connection management
-- Speaker diarization differentiates speakers without training
-- Handles keep-alive automatically via SDK (eliminates manual ping/pong)
-- Browser-to-Deepgram direct connection possible, but server-side proxy via Convex recommended for API key security
-
-**Implementation Pattern:**
+**Configuration (add to existing tailwind.config.ts):**
 ```typescript
-// Server-side Convex action (recommended)
-import { Deepgram } from '@deepgram/sdk';
+import type { Config } from "tailwindcss";
 
-// Proxy WebSocket connection through Convex
-// Send audio chunks from client → Convex action → Deepgram
-// Receive transcripts Deepgram → Convex mutation → Client subscription
-```
-
-**Key Features to Use:**
-- `model: "nova-2"` (latest, best accuracy)
-- `diarize: true` (speaker attribution)
-- `punctuate: true` (readable transcripts)
-- `interim_results: true` (show partial results while speaking)
-
-**Installation:**
-```bash
-npm install @deepgram/sdk
-```
-
-**Sources:**
-- [Deepgram Streaming API Documentation](https://developers.deepgram.com/reference/speech-to-text/listen-streaming)
-- [Deepgram JavaScript SDK](https://developers.deepgram.com/docs/js-sdk)
-- [Deepgram WebSocket Implementation Guide](https://developers.deepgram.com/docs/lower-level-websockets)
-
----
-
-## AI Summarization
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| @anthropic-ai/sdk | latest | Claude API integration | Generate summaries/key points/action items from transcripts, official TypeScript SDK, streaming response support | HIGH |
-
-**Rationale:**
-- Claude API excels at structured text analysis (summaries, key points, action items)
-- Official SDK handles streaming responses (show summary as it generates)
-- TypeScript-first with excellent type definitions
-- Can call from Convex actions (server-side) to keep API key secure
-
-**Implementation Pattern:**
-```typescript
-// Convex action for AI summary generation
-export const generateSummary = action({
-  args: { transcriptId: v.id('transcripts') },
-  handler: async (ctx, args) => {
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
-    // Stream summary back to client via Convex mutation updates
-    const stream = await anthropic.messages.stream({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: transcript }],
-    });
-
-    // Store summary chunks as they arrive
-  },
-});
-```
-
-**Installation:**
-```bash
-npm install @anthropic-ai/sdk
-```
-
-**Sources:**
-- [Anthropic API Documentation](https://platform.claude.com/docs)
-- [Anthropic SDK TypeScript](https://github.com/anthropics/anthropic-sdk-typescript)
-
----
-
-## PWA Infrastructure
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| @serwist/next | 9.2.3+ | Service worker generation | Modern next-pwa successor, Next.js 16 compatible, zero-config PWA setup, active maintenance (last update Jan 2026) | HIGH |
-| next/pwa (built-in) | - | Manifest generation | Next.js 16 has built-in manifest.ts/manifest.json support via App Router | HIGH |
-
-**Rationale:**
-- Original `next-pwa` package is deprecated (3+ years unmaintained)
-- Serwist is the actively maintained fork, designed for Next.js 14-16
-- Next.js 16 App Router provides native manifest file generation
-- For advanced offline caching, Serwist adds service worker capabilities
-- For basic PWA (installability + manifest), use Next.js built-in features
-
-**Two Approaches:**
-
-### Approach A: Minimal (Recommended for MVP)
-Use Next.js built-in PWA support without additional packages:
-
-```typescript
-// app/manifest.ts
-import { MetadataRoute } from 'next';
-
-export default function manifest(): MetadataRoute.Manifest {
-  return {
-    name: 'AI Transcription',
-    short_name: 'Transcribe',
-    description: 'Real-time audio transcription with AI summaries',
-    start_url: '/',
-    display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#000000',
-    icons: [
-      {
-        src: '/icon-192.png',
-        sizes: '192x192',
-        type: 'image/png',
-      },
-      {
-        src: '/icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-      },
-    ],
-  };
-}
-```
-
-Add to `app/layout.tsx`:
-```typescript
-export const metadata = {
-  manifest: '/manifest.webmanifest',
-  themeColor: '#000000',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'AI Transcription',
-  },
+const config: Config = {
+  // ... existing config
+  plugins: [require("tailwindcss-animate")],
 };
+export default config;
 ```
 
-### Approach B: Advanced (With Offline Support)
-Add Serwist for service worker and offline caching:
+**Usage examples:**
+```html
+<!-- Enter animation -->
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-300">
+  Content fades and slides up on mount
+</div>
 
-```bash
-npm install @serwist/next
+<!-- Hover transition -->
+<button class="transition-colors duration-150 hover:bg-primary/90">
+  Click me
+</button>
+
+<!-- Tab indicator slide -->
+<div class="transition-all duration-200 ease-out" style="transform: translateX(...)">
+  Tab indicator
+</div>
 ```
 
-Configure in `next.config.mjs`:
-```javascript
-import withSerwistInit from '@serwist/next';
-
-const withSerwist = withSerwistInit({
-  swSrc: 'app/sw.ts',
-  swDest: 'public/sw.js',
-});
-
-export default withSerwist({
-  // Next.js config
-});
-```
-
-**Recommendation:** Start with Approach A (built-in). Add Serwist later only if offline audio playback needed.
-
-**Mobile Install Prompts:**
-- Android: Automatic prompt when PWA criteria met (HTTPS + manifest + service worker)
-- iOS: No automatic prompt - must educate users to use "Add to Home Screen" from Safari share menu
-- Consider library like `react-pwa-install-prompt` for custom iOS instructions
-
-**Sources:**
-- [Next.js PWA Guide](https://nextjs.org/docs/app/guides/progressive-web-apps)
-- [Serwist Next.js Integration](https://serwist.pages.dev/docs/next/getting-started)
-- [PWA Installation Best Practices](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable)
+**Confidence:** HIGH -- Verified via official GitHub repo, widely adopted (shadcn/ui standard), compatible with Tailwind v3.
 
 ---
 
-## Audio Recording & Processing
+## Tier 2: JavaScript Animation Library (Complex Interactions)
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| MediaRecorder API | Native | Browser audio recording | Native Web API, zero dependencies, widely supported, produces opus/webm that Deepgram accepts | HIGH |
-| Web Audio API (AudioWorklet) | Native | Advanced audio processing | Use ONLY if need PCM conversion or audio preprocessing. MediaRecorder sufficient for most cases | MEDIUM |
-| react-media-recorder | 1.7.2 | Optional React wrapper | Convenience hooks for MediaRecorder, NOT required but simplifies state management | MEDIUM |
+### Recommended: Motion (v12.x) with LazyMotion + domAnimation
 
-**Rationale:**
-- **MediaRecorder API is sufficient for this use case** - No need for lower-level AudioWorklet
-- Deepgram accepts WebM/Opus audio directly (most common MediaRecorder output format)
-- MediaRecorder is simpler, more reliable, and has less overhead than AudioWorklet
-- AudioWorklet is only needed if you require raw PCM audio or real-time audio processing/visualization
-- react-media-recorder adds convenience but is optional (can build custom hook easily)
+| Package | Version | Size (with LazyMotion) | Purpose |
+|---------|---------|------------------------|---------|
+| `motion` | ^12.34.0 | ~4.6kb initial + 15kb async (domAnimation) | AnimatePresence, layout animations, page transitions |
 
-**MediaRecorder Implementation (Recommended):**
+**About Motion:** Formerly "Framer Motion." The library was spun off as independent in late 2024 by creator Matt Perry. The `motion` npm package is a drop-in replacement for `framer-motion`. Import from `"motion/react"` instead of `"framer-motion"`. Same API, same features, independent governance.
+
+**Why Motion over alternatives:**
+
+| Criterion | Motion | React Spring | GSAP | CSS-only |
+|-----------|--------|--------------|------|----------|
+| Exit animations (unmount) | AnimatePresence built-in | useTransition (complex API) | Manual DOM management | Not possible |
+| Layout animations | `layout` prop, one line | Not supported | Flip plugin (extra bundle) | Not possible |
+| List filter animations | AnimatePresence + layout | useTransition | Manual | Not possible |
+| Page transitions | Pairs with next-transition-router | Manual | Pairs with next-transition-router | View Transitions API (experimental) |
+| Bundle size (optimized) | ~20kb (LazyMotion + domAnimation) | ~45kb | ~78kb | 0kb |
+| React integration | First-class (`<motion.div>`) | Hooks-based | Imperative refs | Class-based |
+| DX for UI interactions | Excellent (declarative) | Good (hooks) | Fair (imperative) | Good (utilities) |
+| Mobile Safari 60fps | Yes (transform/opacity) | Yes | Yes | Yes |
+| Next.js App Router | Full support with "use client" | Full support | Full support | Native |
+| Weekly npm downloads | ~3.6M | ~788K | ~1.47M | N/A |
+
+**Why NOT React Spring:** Larger bundle (45kb), no built-in layout animations, more complex API for the use cases we need (list filtering, exit animations). React Spring excels at physics-based natural motion, which is not a primary need for this project's UI micro-interactions.
+
+**Why NOT GSAP:** Largest bundle (78kb), imperative API that fights React's declarative model, licensing considerations for commercial use (requires special license for SaaS). Overkill for UI micro-interactions -- GSAP shines for complex timeline-based storytelling animations, which is not this project's domain.
+
+**Why NOT CSS View Transitions API (native):** Next.js's `experimental.viewTransition` config is still **experimental** (documented as "not recommended for production" as of Next.js 16.1.6). The React `<ViewTransition>` component requires React Canary channel. While the browser API itself has 89.5% global support (including iOS Safari 18+), the Next.js/React integration is not production-ready. This is a strong "revisit later" option -- likely becomes the preferred answer in 6-12 months when Next.js stabilizes the integration.
+
+### Motion Bundle Size Strategy
+
+The full `motion` component ships at ~34kb with all features. Using `LazyMotion` + the `m` component reduces this:
+
+| Strategy | Initial Load | Async Load | Total | Features |
+|----------|-------------|------------|-------|----------|
+| Full `motion` component | 34kb | 0 | 34kb | Everything |
+| LazyMotion + `domAnimation` | 4.6kb | 15kb | ~20kb | Animations, variants, exit, tap/hover/focus |
+| LazyMotion + `domMax` | 4.6kb | 25kb | ~30kb | All above + pan/drag + layout animations |
+
+**Recommendation:** Start with `domAnimation` (~20kb). This covers AnimatePresence for exit animations, variants for staggered list entry, and basic gesture support. If list-filter layout animations need smooth repositioning of remaining items (not just fade in/out of filtered items), upgrade to `domMax` (~30kb). Both are acceptable for a mobile PWA.
+
+**Installation:**
+```bash
+npm install motion
+```
+
+### Next.js App Router Integration Pattern
+
+Motion components require browser APIs, so they must live in Client Components. Best practice: push the `"use client"` boundary as far down the tree as possible to keep the rest of the app server-rendered.
 
 ```typescript
-// Custom hook without dependencies
-export function useAudioRecorder() {
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+// components/motion.tsx
+"use client";
+import { LazyMotion, domAnimation } from "motion/react";
 
-  const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1, // Mono
-        sampleRate: 16000, // Deepgram optimal
-        echoCancellation: true,
-        noiseSuppression: true,
-      }
-    });
-
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'audio/webm;codecs=opus', // Deepgram compatible
-    });
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunksRef.current.push(event.data);
-        // Send chunk to Convex → Deepgram
-      }
-    };
-
-    mediaRecorder.start(1000); // Emit chunks every 1 second
-    mediaRecorderRef.current = mediaRecorder;
-    setIsRecording(true);
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
-
-  return { isRecording, startRecording, stopRecording };
+export function MotionProvider({ children }: { children: React.ReactNode }) {
+  return <LazyMotion features={domAnimation}>{children}</LazyMotion>;
 }
+
+// Re-export m and AnimatePresence for use in other client components
+export { m, AnimatePresence } from "motion/react";
 ```
-
-**MIME Type Priority (check support):**
-1. `audio/webm;codecs=opus` (best compression, Deepgram native support)
-2. `audio/webm` (fallback)
-3. `audio/ogg;codecs=opus` (Firefox)
-4. `audio/mp4` (Safari fallback)
-
-Always use `MediaRecorder.isTypeSupported()` before selecting MIME type.
-
-**When to Use AudioWorklet:**
-- Need to visualize waveforms in real-time (frequency analysis)
-- Require PCM audio for non-Deepgram processing
-- Need sample-level audio manipulation
-
-**For this project: MediaRecorder is sufficient. Avoid AudioWorklet complexity.**
-
-**Installation (optional wrapper):**
-```bash
-npm install react-media-recorder  # OPTIONAL
-```
-
-**Sources:**
-- [MDN MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)
-- [MDN MediaRecorder Guide](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream_Recording_API/Using_the_MediaStream_Recording_API)
-- [MediaRecorder vs AudioWorklet Comparison](https://medium.com/@tihomir.manushev/how-browsers-handle-audio-streams-mediarecorder-vs-web-audio-api-72553933a3a2)
-
----
-
-## State Management
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Zustand | 5.0.11+ | Client state management | Lightweight (3KB), minimal boilerplate, perfect for audio recorder state, works seamlessly with Convex subscriptions | HIGH |
-| React Context | Native | Auth state, theme | Sufficient for global config, avoid for frequently changing state | HIGH |
-
-**Rationale:**
-- Convex handles server state (transcripts, summaries, files)
-- Zustand handles transient client state (recording status, audio levels, UI toggles)
-- Tiny bundle size (3KB) critical for mobile PWA
-- No provider boilerplate, just create store and use
-- Fine-grained reactivity prevents unnecessary rerenders
-
-**Use Cases by Tool:**
-
-| State Type | Tool | Example |
-|------------|------|---------|
-| Transcription data | Convex subscriptions | `useQuery(api.transcripts.get)` |
-| Recording status | Zustand | `isRecording`, `audioLevel`, `duration` |
-| User auth state | Convex Auth + Context | `useAuth()` |
-| UI preferences | Zustand | `theme`, `fontSize`, `showTimestamps` |
-
-**Zustand Example:**
 
 ```typescript
-import { create } from 'zustand';
+// In layout.tsx (can remain a server component if MotionProvider is "use client")
+import { MotionProvider } from "@/components/motion";
 
-interface RecorderState {
-  isRecording: boolean;
-  isPaused: boolean;
-  duration: number;
-  startRecording: () => void;
-  stopRecording: () => void;
-  pauseRecording: () => void;
-}
-
-export const useRecorderStore = create<RecorderState>((set) => ({
-  isRecording: false,
-  isPaused: false,
-  duration: 0,
-  startRecording: () => set({ isRecording: true }),
-  stopRecording: () => set({ isRecording: false, duration: 0 }),
-  pauseRecording: () => set({ isPaused: true }),
-}));
-```
-
-**Why NOT Jotai:**
-- Jotai's atom-based approach is overkill for simple recording state
-- Zustand's global store model is more intuitive for this use case
-- Zustand has better TypeScript DX with less boilerplate
-
-**Why NOT Redux:**
-- Redux is excessive for small-to-medium PWA
-- Convex already handles complex state synchronization
-- Zustand provides 90% of Redux benefits with 10% of the code
-
-**Installation:**
-```bash
-npm install zustand
-```
-
-**Sources:**
-- [Zustand Documentation](https://zustand.docs.pmnd.rs/)
-- [State Management in 2025 Comparison](https://dev.to/hijazi313/state-management-in-2025-when-to-use-context-redux-zustand-or-jotai-2d2k)
-
----
-
-## UI & Styling
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Tailwind CSS | 4.x | Utility-first styling | Latest major version (CSS-first config), mobile-first responsive design, excellent Next.js integration | HIGH |
-| shadcn/ui | latest | Component library | Updated for Tailwind v4 + React 19, accessible components, copy-paste (not dependency), used by Netflix/OpenAI | HIGH |
-| tw-animate-css | latest | Animations | Replaces deprecated tailwindcss-animate, required by shadcn/ui for Tailwind v4 | HIGH |
-
-**Rationale:**
-- Tailwind v4 moved to CSS-first configuration (no more `tailwind.config.js`)
-- shadcn/ui provides production-ready components without dependency bloat
-- All components are accessible (WCAG compliant) out of the box
-- Copy-paste model means you control the code
-- Mobile-first utility classes ideal for PWA development
-
-**Tailwind v4 Setup:**
-
-```css
-/* app/globals.css */
-@import 'tailwindcss';
-
-@theme {
-  --color-primary: #000000;
-  --color-secondary: #666666;
-  /* Custom theme variables */
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html>
+      <body>
+        <MotionProvider>{children}</MotionProvider>
+      </body>
+    </html>
+  );
 }
 ```
 
-**shadcn/ui Installation:**
+```typescript
+// components/animated-list.tsx
+"use client";
+import { m, AnimatePresence } from "@/components/motion";
 
-```bash
-npx shadcn@latest init
+export function AnimatedList({ items }: { items: Item[] }) {
+  return (
+    <AnimatePresence mode="popLayout">
+      {items.map((item) => (
+        <m.div
+          key={item.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ItemCard item={item} />
+        </m.div>
+      ))}
+    </AnimatePresence>
+  );
+}
 ```
 
-The CLI now supports Tailwind v4 initialization and will configure `tw-animate-css` automatically.
+**Confidence:** HIGH -- Motion v12.34.0 verified on npm (published within 24 hours of research). LazyMotion bundle sizes verified via official documentation. Next.js App Router compatibility confirmed via multiple sources including Motion's own installation docs.
 
-**Key Components for Audio App:**
-- Button, Card, Dialog (core UI)
-- Progress (recording duration)
-- Slider (audio playback controls)
-- Toast (notifications)
-- Skeleton (loading states for transcripts)
-- Tabs (switch between recordings, summaries)
+---
 
-**Mobile Considerations:**
-- All shadcn/ui components are touch-friendly
-- Use `touch-action` utilities for custom gestures
-- Tailwind's responsive prefixes (`sm:`, `md:`) for breakpoints
+## Page Transitions: Specific Approach
+
+### Recommended: `next-transition-router` + Motion
+
+| Package | Version | Size | Purpose |
+|---------|---------|------|---------|
+| `next-transition-router` | latest (beta) | <8kb | Hooks into App Router navigation lifecycle for enter/exit callbacks |
+
+**Why this approach:**
+
+The core challenge with page transitions in Next.js App Router is that the router unmounts pages immediately on navigation. There is no built-in "wait for exit animation" mechanism. `next-transition-router` solves this by:
+
+1. Intercepting navigation events
+2. Providing async `leave` and `enter` callbacks
+3. Delaying the actual route change until the exit animation completes
+4. Working with any animation library (we pair it with Motion for consistent API)
+
+**Alternative considered: `next-view-transitions`** (by Shu Ding, Next.js core team) -- uses the native View Transitions API. Version 0.3.5. More lightweight than next-transition-router, but limited to what the View Transitions API can do (cross-fade style transitions). Less control over choreography. Good fallback option if simpler transitions are acceptable.
+
+**Alternative considered: Next.js `experimental.viewTransition`** -- rejected because it requires React Canary and is explicitly "not recommended for production" in the Next.js docs.
 
 **Installation:**
 ```bash
-npm install -D tailwindcss@next postcss autoprefixer
-npx tailwindcss init -p
-npx shadcn@latest init
-npx shadcn@latest add button card dialog progress slider toast skeleton tabs
+npm install next-transition-router
 ```
 
-**Sources:**
-- [shadcn/ui Tailwind v4 Guide](https://ui.shadcn.com/docs/tailwind-v4)
-- [Tailwind CSS v4 Documentation](https://tailwindcss.com/)
-- [shadcn/ui Component Library](https://ui.shadcn.com/)
+**Confidence:** MEDIUM -- Library is in beta, 317 GitHub stars, actively maintained (91 commits). The pattern is sound (async navigation lifecycle hooks), but beta status means API may change. Acceptable risk for a polish milestone. If stability concerns arise, page transitions can be implemented with a custom hook that uses the View Transitions API directly (supported in iOS Safari 18+, Chrome 111+, Firefox 144+).
 
 ---
 
-## Development Tools
+## What NOT to Add
 
-| Tool | Version | Purpose | Why | Confidence |
-|------|---------|---------|-----|------------|
-| ESLint | 9.x | Linting | Next.js 16 ships with ESLint v9, App Router-aware rules | HIGH |
-| Prettier | latest | Code formatting | Standard formatter, Tailwind plugin for class sorting | HIGH |
-| Playwright | latest | E2E testing | Better PWA testing than Cypress, can test audio APIs | MEDIUM |
-
-**Installation:**
-```bash
-npm install -D prettier prettier-plugin-tailwindcss
-npm install -D @playwright/test
-```
-
----
-
-## Environment & Deployment
-
-| Technology | Purpose | Why | Confidence |
-|-----------|---------|-----|------------|
-| Vercel | Hosting | Built by Next.js creators, zero-config Next.js 16 deployment, global edge network | HIGH |
-| Convex | Backend hosting | Hosted by Convex (included in Convex plan) | HIGH |
-
-**Environment Variables (`.env.local`):**
-```bash
-# Convex
-CONVEX_DEPLOYMENT=
-
-# Deepgram
-DEEPGRAM_API_KEY=
-
-# Anthropic
-ANTHROPIC_API_KEY=
-
-# Convex Auth (if using)
-AUTH_PRIVATE_KEY=
-```
-
-**Vercel Deployment:**
-```bash
-npm install -g vercel
-vercel
-```
-
-Next.js 16's Turbopack ensures fast builds on Vercel. No additional config needed.
+| Technology | Why Not |
+|------------|---------|
+| GSAP (GreenSock) | 78kb, imperative API, SaaS licensing complexity, overkill for micro-interactions |
+| React Spring | 45kb, no layout animations, more complex API, physics model unnecessary here |
+| `@formkit/auto-animate` | Automatic animations are convenient but offer little control over timing/easing; not suitable for polished, branded micro-interactions |
+| Lottie / Rive | Heavy runtimes for illustration-based animations -- this project needs UI transitions, not animated illustrations |
+| `react-transition-group` | Legacy library, minimal features, essentially just mount/unmount class toggling. tailwindcss-animate + Motion covers this better |
+| `tw-animate-css` | Tailwind v4 only; project is on Tailwind v3.4.1 |
+| Anime.js | Imperative API, not React-optimized, smaller community than Motion |
+| View Transitions API (native via Next.js) | Next.js integration still experimental, React ViewTransition requires Canary channel. Revisit in 6-12 months |
+| `framer-motion` (old package name) | Use `motion` instead -- same library, renamed. `framer-motion` still works but `motion` is the canonical package going forward |
 
 ---
 
-## Alternative Stacks Considered
+## Bundle Size Impact Summary
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Framework | Next.js 16 | Remix, Astro | Remix lacks PWA tooling maturity; Astro is static-first, not ideal for real-time apps |
-| Backend | Convex | Supabase, Firebase | Supabase requires manual WebSocket setup; Firebase real-time DB has worse TypeScript DX |
-| PWA Tooling | @serwist/next | @ducanh2912/next-pwa | Serwist is the actively maintained successor |
-| Audio Recording | MediaRecorder API | AudioWorklet | AudioWorklet is complex overkill unless need raw PCM processing |
-| State Management | Zustand | Jotai, Redux | Jotai is over-engineered for this use case; Redux is verbose |
-| Transcription | Deepgram | AssemblyAI, Whisper | AssemblyAI lacks WebSocket streaming; Whisper requires self-hosting GPU infra |
-| Styling | Tailwind v4 | CSS Modules, Emotion | CSS Modules lack utility-first DX; Emotion adds runtime overhead to PWA |
+| Addition | Gzipped Size | Load Strategy |
+|----------|-------------|---------------|
+| `tailwindcss-animate` | ~3kb CSS | Included in CSS bundle, tree-shaken by Tailwind |
+| Motion (LazyMotion + domAnimation) | ~4.6kb initial + ~15kb async | Code-split, async loaded after first paint |
+| `next-transition-router` | <8kb | Loaded with layout |
+| **Total added JS** | **~28kb** | Async/code-split where possible |
+
+For context: the existing `react-voice-visualizer` dependency is ~15kb. This animation stack adds roughly 2x that, spread across initial and async loads. Acceptable for a PWA focused on polish.
+
+---
+
+## Mobile Performance Guidelines
+
+**Properties safe to animate (GPU-accelerated, compositor thread):**
+- `transform` (translate, scale, rotate)
+- `opacity`
+- `filter` (with caution on older devices)
+
+**Properties to AVOID animating (trigger layout reflow, main thread, break 60fps):**
+- `width`, `height`
+- `top`, `left`, `right`, `bottom`
+- `margin`, `padding`
+- `border-width`
+
+**Tailwind-specific performance rules:**
+- Use `transition-colors` instead of `transition-all` (avoids animating layout properties accidentally)
+- Use `will-change-transform` on elements that will animate frequently
+- Use `motion-safe:` / `motion-reduce:` variants to respect `prefers-reduced-motion`
+
+**Motion-specific performance rules:**
+- Use `layout` prop sparingly -- layout animations measure DOM, which can be expensive with many elements
+- Prefer `layout="position"` over `layout={true}` when only position changes (avoids size measurements)
+- Use `AnimatePresence mode="popLayout"` for list filtering -- it removes items from flow immediately, preventing layout thrashing while the exit animation plays
+- Keep transition durations short for micro-interactions (150-300ms). Longer durations (300-500ms) only for page transitions
+- Avoid animating more than ~20 elements simultaneously on mobile
+
+**Target: 60fps on Mobile Safari.** All animations must complete within the 16ms frame budget. All recommendations above use `transform` and `opacity` as primary animated properties to stay on the compositor thread.
+
+---
+
+## Use Case to Technology Mapping
+
+This is the key decision guide. For each animation need, use the simplest tool that works.
+
+| Use Case | Technology | Why This Tool |
+|----------|-----------|---------------|
+| Button hover/press feedback | Tailwind `transition-colors duration-150` | Pure CSS, zero JS, 60fps guaranteed |
+| Card hover elevation | Tailwind `transition-shadow duration-200` | Pure CSS |
+| Skeleton loading | Tailwind `animate-pulse` | Built-in utility |
+| Toast/notification appear | `tailwindcss-animate` `animate-in fade-in slide-in-from-top` | CSS-only enter animation |
+| Tab underline indicator slide | Tailwind `transition-all duration-200` | CSS transition on transform |
+| Search input focus ring | Tailwind `transition-shadow duration-150` | Pure CSS |
+| Spinner/loading indicator | Tailwind `animate-spin` | Built-in utility |
+| **List items animate in (stagger)** | Motion `m.div` with `transition.delay` | Stagger requires JS orchestration |
+| **List items animate out on removal** | Motion `AnimatePresence` with `exit` prop | CSS cannot delay React unmount |
+| **Search filter: items fade out, remaining reposition** | Motion `AnimatePresence mode="popLayout"` + `layout` | Items need to exit AND remaining items smoothly reposition |
+| **Page route transitions** | `next-transition-router` + Motion | Need async navigation lifecycle + enter/exit animations |
+| **Tab content slide left/right** | Motion `AnimatePresence mode="wait"` with direction-aware variants | Content must exit before new content enters, direction matters |
+| **Accordion/collapsible height animation** | Motion `m.div` with `animate={{ height: "auto" }}` | CSS cannot animate to `height: auto` |
 
 ---
 
 ## Installation Summary
 
-**Core Dependencies:**
 ```bash
-# Create Next.js 16 app
-npx create-next-app@latest my-transcription-app --typescript
+# Tier 1: CSS animations (add to devDependencies)
+npm install -D tailwindcss-animate
 
-# Backend & real-time
-npm install convex
+# Tier 2: JS animations (add to dependencies)
+npm install motion
 
-# Audio transcription
-npm install @deepgram/sdk
-
-# AI summaries
-npm install @anthropic-ai/sdk
-
-# State management
-npm install zustand
-
-# UI & styling (already included in create-next-app with Tailwind option)
-npx shadcn@latest init
-npx shadcn@latest add button card dialog progress slider toast skeleton tabs
-
-# PWA (optional, for offline support)
-npm install @serwist/next
+# Page transitions (add to dependencies)
+npm install next-transition-router
 ```
 
-**Dev Dependencies:**
-```bash
-npm install -D prettier prettier-plugin-tailwindcss
-npm install -D @playwright/test
-```
+**Total new dependencies: 3** (1 dev, 2 production)
 
 ---
 
-## Key Architectural Decisions
+## Future Considerations
 
-### 1. MediaRecorder over AudioWorklet
-**Decision:** Use native MediaRecorder API, not AudioWorklet
-**Rationale:** Deepgram accepts WebM/Opus directly. AudioWorklet adds complexity (separate worker thread, manual PCM processing) with no benefit for this use case.
+**View Transitions API (revisit in 6-12 months):**
+The browser-native View Transitions API has excellent support (89.5% global, iOS Safari 18+). Once Next.js stabilizes its `viewTransition` integration (moves from experimental to stable), it could replace `next-transition-router` entirely for page transitions, and potentially simplify list animations. Monitor Next.js release notes.
 
-### 2. Server-Side Audio Proxying
-**Decision:** Proxy Deepgram WebSocket through Convex actions
-**Rationale:** Keep Deepgram API key server-side. Convex actions can maintain WebSocket connection and forward chunks bidirectionally.
+**Tailwind v4 migration:**
+If/when the project upgrades to Tailwind v4, replace `tailwindcss-animate` with `tw-animate-css` (the v4-compatible successor). The animation class names are the same, so the migration is a config-only change.
 
-### 3. Built-in PWA over Serwist (MVP)
-**Decision:** Use Next.js 16 built-in manifest.ts for MVP
-**Rationale:** Serwist adds service worker complexity. For installability alone, Next.js built-in is sufficient. Add Serwist later if offline playback required.
-
-### 4. Zustand over Context for Recording State
-**Decision:** Zustand for transient UI state (recording status, timers)
-**Rationale:** React Context causes full subtree rerenders. Zustand provides granular subscriptions, critical for real-time audio level updates.
-
-### 5. shadcn/ui over Headless UI Libraries
-**Decision:** shadcn/ui copy-paste components
-**Rationale:** No dependency lock-in. Components are yours to modify. Accessible by default. Tailwind v4 compatible.
-
----
-
-## Version Verification
-
-All versions verified as of February 9, 2026:
-
-- Next.js: 16.1.6 (latest stable)
-- React: 19.2 (ships with Next.js 16)
-- TypeScript: 5.9.3 (latest)
-- Convex: 1.31.7 (published Feb 2026)
-- @deepgram/sdk: 4.11.3 (published Dec 2025)
-- @anthropic-ai/sdk: latest (active development)
-- @serwist/next: 9.2.3 (published Jan 2026)
-- Zustand: 5.0.11 (published Feb 2026)
-- Tailwind CSS: 4.x (latest major)
-- shadcn/ui: Updated for Tailwind v4 (Jan 2026)
-
----
-
-## Confidence Assessment
-
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Framework (Next.js 16) | HIGH | Official stable release, widely adopted, excellent docs |
-| Backend (Convex) | HIGH | Production-ready, excellent Next.js integration, proven real-time capabilities |
-| Audio APIs (MediaRecorder) | HIGH | Native browser API, well-documented, widely supported (95%+ browsers) |
-| Transcription (Deepgram) | HIGH | Industry standard, official SDK, comprehensive documentation |
-| PWA Tooling | HIGH | Next.js built-in support stable; Serwist actively maintained |
-| State Management | HIGH | Zustand is mature and widely adopted in production apps |
-| UI Library | HIGH | shadcn/ui production-proven, Tailwind v4 stable |
-| Convex Auth | MEDIUM | Beta status but Next.js patterns are stable and documented |
+**Motion `domMax` upgrade:**
+If list filtering animations need smooth repositioning of remaining items (FLIP-style layout animation), upgrade the LazyMotion features from `domAnimation` to `domMax`. This adds ~10kb but enables the `layout` prop on `m` components.
 
 ---
 
 ## Sources
 
-**Official Documentation:**
-- [Next.js 16 Release Notes](https://nextjs.org/blog/next-16)
-- [Next.js PWA Guide](https://nextjs.org/docs/app/guides/progressive-web-apps)
-- [Convex Documentation](https://docs.convex.dev/)
-- [Deepgram API Reference](https://developers.deepgram.com/)
-- [Anthropic API Documentation](https://platform.claude.com/docs)
-- [MDN MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)
-- [Zustand Documentation](https://zustand.docs.pmnd.rs/)
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
-- [Tailwind CSS v4 Documentation](https://tailwindcss.com/)
+### Official Documentation (HIGH confidence)
+- [Next.js viewTransition config](https://nextjs.org/docs/app/api-reference/config/next-config-js/viewTransition) -- experimental status confirmed, documented as "not recommended for production"
+- [Motion installation docs](https://motion.dev/docs/react-installation) -- import paths, setup
+- [Motion LazyMotion docs](https://motion.dev/docs/react-lazy-motion) -- bundle size optimization (4.6kb initial, domAnimation +15kb, domMax +25kb)
+- [Motion bundle size reduction guide](https://motion.dev/docs/react-reduce-bundle-size) -- m component, feature packages
+- [Motion AnimatePresence docs](https://motion.dev/docs/react-animate-presence) -- exit animation patterns, modes
+- [Motion performance guide](https://motion.dev/docs/performance) -- GPU-accelerated properties
+- [Tailwind CSS animation utilities](https://tailwindcss.com/docs/animation) -- built-in animate-* classes
+- [Tailwind CSS transition utilities](https://tailwindcss.com/docs/transition-property)
+- [tailwindcss-animate GitHub](https://github.com/jamiebuilds/tailwindcss-animate) -- enter/exit CSS animation utilities for Tailwind v3
+- [Can I Use: View Transitions API](https://caniuse.com/view-transitions) -- 89.49% global support, iOS Safari 18+
 
-**Key Articles & Guides:**
-- [Next.js App Router Streaming Patterns 2026](https://medium.com/@beenakumawat002/next-js-app-router-advanced-patterns-for-2026-server-actions-ppr-streaming-edge-first-b76b1b3dcac7)
-- [Deepgram JavaScript SDK v3 Migration](https://developers.deepgram.com/docs/js-sdk-v2-to-v3-migration-guide)
-- [Serwist Next.js Integration](https://serwist.pages.dev/docs/next/getting-started)
-- [MediaRecorder vs Web Audio API](https://medium.com/@tihomir.manushev/how-browsers-handle-audio-streams-mediarecorder-vs-web-audio-api-72553933a3a2)
-- [State Management in 2025 Comparison](https://dev.to/hijazi313/state-management-in-2025-when-to-use-context-redux-zustand-or-jotai-2d2k)
-- [shadcn/ui Tailwind v4 Support](https://ui.shadcn.com/docs/tailwind-v4)
+### Ecosystem Research (MEDIUM confidence)
+- [LogRocket: Best React animation libraries 2026](https://blog.logrocket.com/best-react-animation-libraries/) -- comparison table, bundle sizes, use case recommendations
+- [Syncfusion: Top 7 React animation libraries 2026](https://www.syncfusion.com/blogs/post/top-react-animation-libraries) -- ecosystem overview
+- [Motion blog: Framer Motion independence announcement](https://motion.dev/blog/framer-motion-is-now-independent-introducing-motion) -- rename from framer-motion to motion
+- [Motion blog: Should I use Framer Motion or Motion One?](https://motion.dev/blog/should-i-use-framer-motion-or-motion-one) -- bundle size tradeoffs
+- [next-transition-router GitHub](https://github.com/ismamz/next-transition-router) -- page transition solution, <8kb, beta, 317 stars
+- [next-view-transitions GitHub](https://github.com/shuding/next-view-transitions) -- alternative using View Transitions API, v0.3.5
+- [Next.js route transitions discussion #42658](https://github.com/vercel/next.js/discussions/42658) -- community approaches to App Router page transitions
+- [Motion + Next.js SSR discussion](https://github.com/motiondivision/motion/discussions/3184) -- "use client" boundary patterns
 
-**Package Registries:**
-- [next on npm](https://www.npmjs.com/package/next)
-- [convex on npm](https://www.npmjs.com/package/convex)
-- [@deepgram/sdk on npm](https://www.npmjs.com/package/@deepgram/sdk)
-- [@anthropic-ai/sdk on npm](https://www.npmjs.com/package/@anthropic-ai/sdk)
-- [@serwist/next on npm](https://www.npmjs.com/package/@serwist/next)
-- [zustand on npm](https://www.npmjs.com/package/zustand)
+### npm Registry (HIGH confidence)
+- [motion on npm](https://www.npmjs.com/package/motion) -- v12.34.0, 3.6M weekly downloads, published 2026-02-09
+- [framer-motion on npm](https://www.npmjs.com/package/framer-motion) -- still available, motion is drop-in replacement
+- [tailwindcss-animate on npm](https://www.npmjs.com/package/tailwindcss-animate) -- Tailwind v3 compatible
+- [tw-animate-css on npm](https://www.npmjs.com/package/tw-animate-css) -- Tailwind v4 only (NOT for this project)
