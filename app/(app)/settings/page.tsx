@@ -162,20 +162,6 @@ function Chevron() {
   );
 }
 
-function Icon({ d }: { d: string }) {
-  return (
-    <svg
-      style={{ width: 20, height: 20 }}
-      fill="none"
-      stroke="#8B7E74"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-    </svg>
-  );
-}
-
 function LanguagePickerModal({
   selectedCode,
   onSelect,
@@ -375,8 +361,6 @@ export default function SettingsPage() {
 
   // Local-only state (future phases)
   const [detectSpeakers, setDetectSpeakers] = useState(true);
-  const [autoSave, setAutoSave] = useState(false);
-
   // Language picker modal
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
@@ -405,8 +389,8 @@ export default function SettingsPage() {
       className="flex flex-col"
       style={{ backgroundColor: "#FBF5EE", minHeight: "100dvh" }}
     >
-      {/* Status bar spacer */}
-      <div style={{ height: 16 }} />
+      {/* Status bar spacer (safe area aware) */}
+      <div style={{ height: "max(16px, env(safe-area-inset-top, 16px))" }} />
 
       {/* Header */}
       <div
@@ -469,70 +453,6 @@ export default function SettingsPage() {
         className="flex flex-col flex-1 overflow-y-auto"
         style={{ gap: 20, padding: "0 24px", paddingBottom: 120 }}
       >
-        {/* Account Card */}
-        <div
-          className="flex items-center"
-          style={{
-            gap: 14,
-            padding: 16,
-            borderRadius: 16,
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #EDE6DD",
-          }}
-        >
-          <div
-            className="flex items-center justify-center shrink-0"
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: "#D4622B",
-            }}
-          >
-            <svg
-              style={{ width: 22, height: 22 }}
-              fill="none"
-              stroke="#FFFFFF"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-          <div
-            className="flex flex-col flex-1"
-            style={{ gap: 2, minWidth: 0 }}
-          >
-            <span
-              className="truncate"
-              style={{ fontSize: 16, fontWeight: 600, color: "#1A1A1A" }}
-            >
-              Account
-            </span>
-            <span
-              className="truncate"
-              style={{ fontSize: 13, color: "#8B7E74" }}
-            >
-              Manage your account
-            </span>
-          </div>
-          <svg
-            className="shrink-0"
-            style={{ width: 20, height: 20 }}
-            fill="none"
-            stroke="#B5A99A"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <polyline
-              points="9 18 15 12 9 6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-
         {/* Transcription Card */}
         <div
           className="flex flex-col overflow-hidden"
@@ -612,107 +532,6 @@ export default function SettingsPage() {
           />
         </div>
 
-        {/* Audio & Storage Card */}
-        <div
-          className="flex flex-col overflow-hidden"
-          style={{
-            borderRadius: 16,
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #EDE6DD",
-          }}
-        >
-          <SectionHeader label="AUDIO & STORAGE" />
-          <SettingsRow
-            icon={
-              <svg
-                style={{ width: 20, height: 20 }}
-                fill="none"
-                stroke="#8B7E74"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <line x1="4" y1="21" x2="4" y2="14" strokeLinecap="round" />
-                <line x1="4" y1="10" x2="4" y2="3" strokeLinecap="round" />
-                <line x1="12" y1="21" x2="12" y2="12" strokeLinecap="round" />
-                <line x1="12" y1="8" x2="12" y2="3" strokeLinecap="round" />
-                <line x1="20" y1="21" x2="20" y2="16" strokeLinecap="round" />
-                <line x1="20" y1="12" x2="20" y2="3" strokeLinecap="round" />
-                <line x1="1" y1="14" x2="7" y2="14" strokeLinecap="round" />
-                <line x1="9" y1="8" x2="15" y2="8" strokeLinecap="round" />
-                <line x1="17" y1="16" x2="23" y2="16" strokeLinecap="round" />
-              </svg>
-            }
-            label="Recording Quality"
-            right={<ValueChevron value="High" />}
-          />
-          <Divider />
-          <SettingsRow
-            icon={
-              <svg
-                style={{ width: 20, height: 20 }}
-                fill="none"
-                stroke="#8B7E74"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"
-                />
-                <polyline
-                  points="7 10 12 15 17 10"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <line
-                  x1="12"
-                  y1="15"
-                  x2="12"
-                  y2="3"
-                  strokeLinecap="round"
-                />
-              </svg>
-            }
-            label="Export Format"
-            right={<ValueChevron value="PDF" />}
-          />
-          <Divider />
-          <SettingsRow
-            icon={
-              <svg
-                style={{ width: 20, height: 20 }}
-                fill="none"
-                stroke="#8B7E74"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <line x1="22" y1="12" x2="2" y2="12" strokeLinecap="round" />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"
-                />
-                <line x1="6" y1="16" x2="6.01" y2="16" strokeLinecap="round" />
-                <line
-                  x1="10"
-                  y1="16"
-                  x2="10.01"
-                  y2="16"
-                  strokeLinecap="round"
-                />
-              </svg>
-            }
-            label="Auto-Save to Cloud"
-            right={
-              <Toggle
-                on={autoSave}
-                onToggle={() => setAutoSave(!autoSave)}
-              />
-            }
-          />
-        </div>
-
         {/* About Card */}
         <div
           className="flex flex-col overflow-hidden"
@@ -742,6 +561,7 @@ export default function SettingsPage() {
             }
             label="Help & Support"
             right={<Chevron />}
+            onClick={() => router.push("/help")}
           />
           <Divider />
           <SettingsRow
@@ -762,6 +582,7 @@ export default function SettingsPage() {
             }
             label="Privacy Policy"
             right={<Chevron />}
+            onClick={() => router.push("/privacy")}
           />
           <Divider />
           <SettingsRow
@@ -789,6 +610,65 @@ export default function SettingsPage() {
               <span style={{ fontSize: 14, color: "#B5A99A" }}>1.0.0</span>
             }
           />
+        </div>
+
+        {/* Contact Us Card */}
+        <div
+          className="flex flex-col overflow-hidden"
+          style={{
+            borderRadius: 16,
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #EDE6DD",
+          }}
+        >
+          <SectionHeader label="CONTACT US" />
+          <div
+            className="flex items-center justify-between"
+            style={{ padding: "12px 16px", cursor: "pointer" }}
+            onClick={() => window.open("mailto:support@alliope.app")}
+          >
+            <div className="flex items-center" style={{ gap: 12 }}>
+              <svg
+                style={{ width: 20, height: 20 }}
+                fill="none"
+                stroke="#8B7E74"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                />
+                <polyline
+                  points="22,6 12,13 2,6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <div className="flex flex-col" style={{ gap: 2 }}>
+                <span style={{ fontSize: 15, color: "#1A1A1A" }}>
+                  Email Support
+                </span>
+                <span style={{ fontSize: 12, color: "#D4622B" }}>
+                  support@alliope.app
+                </span>
+              </div>
+            </div>
+            <svg
+              style={{ width: 16, height: 16 }}
+              fill="none"
+              stroke="#B5A99A"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"
+              />
+            </svg>
+          </div>
         </div>
 
         {/* Sign Out */}

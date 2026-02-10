@@ -1,41 +1,84 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+
+const SPEED_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 interface AudioPlayerProps {
   audioUrl: string | null;
+  fallbackDuration?: number;
+  onSkipBack?: () => void;
+  onSkipForward?: () => void;
 }
 
-export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
+export function AudioPlayer({
+  audioUrl,
+  fallbackDuration,
+  onSkipBack,
+  onSkipForward,
+}: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(fallbackDuration || 0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [activeSrc, setActiveSrc] = useState<string | null>(null);
+  const isSeeking = useRef(false);
 
-  // Update current time every 250ms during playback
+  // Fetch audio as blob for seekable playback (WebM files need this)
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    if (!audioUrl) {
+      setActiveSrc(null);
+      return;
+    }
 
-    const interval = setInterval(() => {
-      if (audio && !audio.paused) {
-        setCurrentTime(audio.currentTime);
+    setActiveSrc(audioUrl);
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    (async () => {
+      try {
+        const response = await fetch(audioUrl);
+        if (cancelled) return;
+        const blob = await response.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setActiveSrc(objectUrl);
+      } catch {
+        // Keep using direct URL
       }
-    }, 250);
+    })();
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [audioUrl]);
+
+  // Update duration from fallback prop
+  useEffect(() => {
+    if (fallbackDuration && fallbackDuration > 0 && duration === 0) {
+      setDuration(fallbackDuration);
+    }
+  }, [fallbackDuration, duration]);
 
   // Set up audio event listeners
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
+    const updateDuration = () => {
+      const d = audio.duration;
+      if (isFinite(d) && d > 0) {
+        setDuration(d);
+      }
+    };
+
+    const handleCanPlay = () => {
       setIsLoaded(true);
+      updateDuration();
     };
 
     const handleEnded = () => {
@@ -44,180 +87,328 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
     };
 
     const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
+      if (!isSeeking.current) {
+        setCurrentTime(audio.currentTime);
+      }
+      updateDuration();
     };
 
-    const handleCanPlay = () => {
-      setIsLoaded(true);
-    };
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
 
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("loadedmetadata", updateDuration);
+    audio.addEventListener("durationchange", updateDuration);
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("canplaythrough", handleCanPlay);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+
+    if (audio.readyState >= 2) {
+      handleCanPlay();
+    }
 
     return () => {
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("loadedmetadata", updateDuration);
+      audio.removeEventListener("durationchange", updateDuration);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("canplaythrough", handleCanPlay);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
     };
-  }, [audioUrl]);
+  }, [activeSrc]);
 
-  const togglePlayPause = () => {
+  const togglePlayPause = async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (isPlaying) {
       audio.pause();
     } else {
-      audio.play();
+      await audio.play();
     }
-    setIsPlaying(!isPlaying);
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeekStart = useCallback(() => {
+    isSeeking.current = true;
+  }, []);
+
+  const handleSeekChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setCurrentTime(parseFloat(e.target.value));
+    },
+    []
+  );
+
+  const handleSeekCommit = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    const newTime = parseFloat(e.target.value);
-    audio.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
+    audio.currentTime = currentTime;
+    isSeeking.current = false;
+  }, [currentTime]);
 
   const changePlaybackRate = (rate: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-
     audio.playbackRate = rate;
     setPlaybackRate(rate);
   };
 
-  const formatTime = (seconds: number): string => {
-    if (!isFinite(seconds) || seconds < 0) return "00:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  const speedDown = () => {
+    const idx = SPEED_STEPS.indexOf(playbackRate);
+    if (idx > 0) {
+      changePlaybackRate(SPEED_STEPS[idx - 1]);
+    }
   };
 
-  // No audio URL - show unavailable message
+  const speedUp = () => {
+    const idx = SPEED_STEPS.indexOf(playbackRate);
+    if (idx < SPEED_STEPS.length - 1) {
+      changePlaybackRate(SPEED_STEPS[idx + 1]);
+    }
+  };
+
+  const formatTime = (seconds: number): string => {
+    if (!isFinite(seconds) || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const progressPercent =
+    duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
+
   if (!audioUrl) {
     return (
-      <div
-        className="rounded-2xl p-4"
-        style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD" }}
-      >
-        <p className="text-center text-sm" style={{ color: "#B5A99A" }}>
-          Audio unavailable
-        </p>
+      <div style={{ padding: "16px 0", textAlign: "center" }}>
+        <p style={{ fontSize: 14, color: "#B5A99A" }}>Audio unavailable</p>
       </div>
     );
   }
 
   return (
     <div
-      className="rounded-2xl"
-      style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "12px 16px" }}
+      className="flex flex-col"
+      style={{ gap: 12 }}
     >
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
+      <audio ref={audioRef} src={activeSrc || undefined} preload="auto" />
 
-      {/* Compact horizontal layout: Play | Seek bar with times | Speed buttons */}
-      <div className="flex items-center" style={{ gap: 12 }}>
-        {/* Play/Pause Button */}
+      <style>{`
+        .audio-seek-v2 {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 4px;
+          border-radius: 2px;
+          outline: none;
+          cursor: pointer;
+        }
+        .audio-seek-v2::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #D4622B;
+          cursor: pointer;
+          margin-top: -4px;
+        }
+        .audio-seek-v2::-moz-range-thumb {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #D4622B;
+          cursor: pointer;
+          border: none;
+        }
+        .audio-seek-v2::-webkit-slider-runnable-track {
+          height: 4px;
+          border-radius: 2px;
+        }
+        .audio-seek-v2::-moz-range-track {
+          height: 4px;
+          border-radius: 2px;
+          background: #EDE6DD;
+        }
+      `}</style>
+
+      {/* Progress row */}
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: "#8B7E74",
+            fontFamily: "Inter, sans-serif",
+            minWidth: 32,
+          }}
+        >
+          {formatTime(currentTime)}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={duration || 1}
+          step={0.1}
+          value={currentTime}
+          onPointerDown={handleSeekStart}
+          onChange={handleSeekChange}
+          onPointerUp={handleSeekCommit}
+          className="audio-seek-v2 flex-1"
+          style={{
+            background: `linear-gradient(to right, #D4622B ${progressPercent}%, #EDE6DD ${progressPercent}%)`,
+          }}
+        />
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: "#8B7E74",
+            fontFamily: "Inter, sans-serif",
+            minWidth: 32,
+            textAlign: "right",
+          }}
+        >
+          {formatTime(duration)}
+        </span>
+      </div>
+
+      {/* Controls row */}
+      <div
+        className="flex items-center justify-center"
+        style={{ gap: 32 }}
+      >
+        {/* Skip back (prev transcript) */}
+        <button
+          onClick={onSkipBack}
+          disabled={!onSkipBack}
+          style={{
+            color: onSkipBack ? "#1A1A1A" : "#D5CEC6",
+            background: "none",
+            border: "none",
+            cursor: onSkipBack ? "pointer" : "default",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-label="Previous transcript"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="19 20 9 12 19 4 19 20" />
+            <line x1="5" y1="19" x2="5" y2="5" />
+          </svg>
+        </button>
+
+        {/* Rewind (decrease speed) */}
+        <button
+          onClick={speedDown}
+          disabled={playbackRate <= SPEED_STEPS[0]}
+          style={{
+            color: playbackRate > SPEED_STEPS[0] ? "#1A1A1A" : "#D5CEC6",
+            background: "none",
+            border: "none",
+            cursor: playbackRate > SPEED_STEPS[0] ? "pointer" : "default",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-label="Decrease speed"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 19 2 12 11 5 11 19" />
+            <polygon points="22 19 13 12 22 5 22 19" />
+          </svg>
+        </button>
+
+        {/* Play/Pause */}
         <button
           onClick={togglePlayPause}
           disabled={!isLoaded}
-          className="flex shrink-0 items-center justify-center transition-all active:scale-95"
+          className="flex items-center justify-center transition-all active:scale-95"
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: isLoaded ? "#D2691E" : "#E0D4C8",
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: isLoaded ? "#D4622B" : "#E0D4C8",
             color: "#FFFFFF",
+            border: "none",
+            cursor: isLoaded ? "pointer" : "default",
           }}
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2.5}
-              stroke="currentColor"
-              style={{ width: 20, height: 20 }}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 5.25v13.5m-7.5-13.5v13.5"
-              />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="4" x2="8" y2="20" />
+              <line x1="16" y1="4" x2="16" y2="20" />
             </svg>
           ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2.5}
-              stroke="currentColor"
-              style={{ width: 20, height: 20, marginLeft: 2 }}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z"
-              />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2 }}>
+              <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
           )}
         </button>
 
-        {/* Seek bar with time labels */}
-        <div className="flex flex-1 flex-col" style={{ gap: 2 }}>
-          <input
-            type="range"
-            min={0}
-            max={duration || 0}
-            step={0.1}
-            value={currentTime}
-            onChange={handleSeek}
-            className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
-            style={{
-              background: duration
-                ? `linear-gradient(to right, #D2691E ${(currentTime / duration) * 100}%, #EDE6DD ${(currentTime / duration) * 100}%)`
-                : "#EDE6DD",
-              accentColor: "#D2691E",
-            }}
-          />
-          <div className="flex justify-between">
-            <span style={{ fontSize: 11, color: "#8B7E74" }}>
-              {formatTime(currentTime)}
-            </span>
-            <span style={{ fontSize: 11, color: "#8B7E74" }}>
-              {formatTime(duration)}
-            </span>
-          </div>
-        </div>
+        {/* Fast forward (increase speed) */}
+        <button
+          onClick={speedUp}
+          disabled={playbackRate >= SPEED_STEPS[SPEED_STEPS.length - 1]}
+          style={{
+            color: playbackRate < SPEED_STEPS[SPEED_STEPS.length - 1] ? "#1A1A1A" : "#D5CEC6",
+            background: "none",
+            border: "none",
+            cursor: playbackRate < SPEED_STEPS[SPEED_STEPS.length - 1] ? "pointer" : "default",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-label="Increase speed"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="13 19 22 12 13 5 13 19" />
+            <polygon points="2 19 11 12 2 5 2 19" />
+          </svg>
+        </button>
 
-        {/* Speed Controls */}
-        <div className="flex shrink-0" style={{ gap: 4 }}>
-          {[1, 1.5, 2].map((rate) => (
-            <button
-              key={rate}
-              onClick={() => changePlaybackRate(rate)}
-              className="transition-colors"
-              style={{
-                padding: "4px 8px",
-                borderRadius: 12,
-                fontSize: 12,
-                fontWeight: 600,
-                backgroundColor: playbackRate === rate ? "#D2691E" : "#F5E6D3",
-                color: playbackRate === rate ? "#FFFFFF" : "#8B7E74",
-                minWidth: 36,
-              }}
-            >
-              {rate}x
-            </button>
-          ))}
-        </div>
+        {/* Skip forward (next transcript) */}
+        <button
+          onClick={onSkipForward}
+          disabled={!onSkipForward}
+          style={{
+            color: onSkipForward ? "#1A1A1A" : "#D5CEC6",
+            background: "none",
+            border: "none",
+            cursor: onSkipForward ? "pointer" : "default",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
+          aria-label="Next transcript"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="5 4 15 12 5 20 5 4" />
+            <line x1="19" y1="5" x2="19" y2="19" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Speed label */}
+      <div className="flex justify-center">
+        <span
+          style={{
+            fontFamily: "Inter, sans-serif",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#8B7E74",
+            backgroundColor: "#F5EDE4",
+            borderRadius: 12,
+            padding: "4px 12px",
+          }}
+        >
+          {playbackRate === 1 ? "1.0" : playbackRate}x
+        </span>
       </div>
     </div>
   );

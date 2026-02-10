@@ -15,7 +15,7 @@ export function useRecordingTimer() {
       return () => clearInterval(interval);
     }
 
-    if (status === "idle" || status === "stopped") {
+    if (status === "idle") {
       resetTimer();
     }
   }, [status, incrementTimer, resetTimer]);

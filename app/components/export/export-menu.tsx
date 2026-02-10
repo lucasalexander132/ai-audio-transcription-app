@@ -8,7 +8,7 @@ import {
   downloadFile,
 } from "./transcript-exporter";
 
-export function ExportMenu(props: ExportParams) {
+export function ExportMenu(props: ExportParams & { onDelete?: () => void }) {
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -155,6 +155,7 @@ export function ExportMenu(props: ExportParams) {
               padding: "12px 16px",
               backgroundColor: "transparent",
               border: "none",
+              borderBottom: props.onDelete ? "1px solid #EDE6DD" : "none",
               cursor: "pointer",
               fontSize: 14,
               color: "#1A1A1A",
@@ -185,6 +186,50 @@ export function ExportMenu(props: ExportParams) {
             </svg>
             Export as TXT
           </button>
+          {props.onDelete && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                props.onDelete!();
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                width: "100%",
+                padding: "12px 16px",
+                backgroundColor: "transparent",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 14,
+                color: "#E53E3E",
+                textAlign: "left",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = "#FFF5F5")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = "transparent")
+              }
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#E53E3E"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              Delete Transcript
+            </button>
+          )}
         </div>
       )}
     </div>

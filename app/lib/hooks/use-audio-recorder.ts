@@ -5,6 +5,7 @@ import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useRecordingStore } from "../stores/recording-store";
+import fixWebmDuration from "fix-webm-duration";
 
 export function useAudioRecorder() {
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
@@ -13,6 +14,7 @@ export function useAudioRecorder() {
   const detectedMimeTypeRef = useRef<string>("");
   const wordOffsetRef = useRef<number>(0);
   const transcribeInFlightRef = useRef<boolean>(false);
+  const stopResolveRef = useRef<(() => void) | null>(null);
 
   const { status, transcriptId, elapsedSeconds, setStatus, setTranscriptId, setError, resetTimer } =
     useRecordingStore();
@@ -120,9 +122,14 @@ export function useAudioRecorder() {
         // Handle final recording upload
         if (chunksRef.current.length > 0 && newTranscriptId) {
           try {
-            const recordingBlob = new Blob(chunksRef.current, {
+            const rawBlob = new Blob(chunksRef.current, {
               type: detectedMimeTypeRef.current || "audio/webm",
             });
+
+            // Fix WebM metadata (inject Duration + Cues for seekable playback)
+            const currentElapsed = useRecordingStore.getState().elapsedSeconds;
+            const durationMs = currentElapsed * 1000;
+            const recordingBlob = await fixWebmDuration(rawBlob, durationMs, { logger: false });
 
             // Upload to Convex storage
             const uploadUrl = await generateUploadUrl();
@@ -141,15 +148,20 @@ export function useAudioRecorder() {
               size: recordingBlob.size,
             });
 
-            // Mark transcript as complete
+            // Mark transcript as complete (currentElapsed read above before fixWebmDuration)
             await completeTranscript({
               transcriptId: newTranscriptId,
-              duration: elapsedSeconds,
+              duration: currentElapsed,
             });
           } catch (error) {
             console.error("Error saving recording:", error);
             setError("Failed to save recording");
           }
+        }
+        // Signal that save is complete so stopRecording promise resolves
+        if (stopResolveRef.current) {
+          stopResolveRef.current();
+          stopResolveRef.current = null;
         }
       };
 
@@ -174,7 +186,6 @@ export function useAudioRecorder() {
     setStatus,
     setTranscriptId,
     setError,
-    elapsedSeconds,
   ]);
 
   const pauseRecording = useCallback(() => {
@@ -191,8 +202,13 @@ export function useAudioRecorder() {
     }
   }, [status, setStatus]);
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback((): { transcriptId: Id<"transcripts"> | null; saved: Promise<void> } => {
     if (mediaRecorderRef.current && (status === "recording" || status === "paused")) {
+      // Create a promise that resolves when onstop handler finishes saving
+      const saved = new Promise<void>((resolve) => {
+        stopResolveRef.current = resolve;
+      });
+
       mediaRecorderRef.current.stop();
       setStatus("stopped");
 
@@ -202,9 +218,9 @@ export function useAudioRecorder() {
         setMediaStream(null);
       }
 
-      return transcriptId;
+      return { transcriptId, saved };
     }
-    return null;
+    return { transcriptId: null, saved: Promise.resolve() };
   }, [status, mediaStream, transcriptId, setStatus]);
 
   const discardRecording = useCallback(() => {

@@ -21,7 +21,7 @@ export function FileUpload() {
 
     const transcriptId = await uploadFile(file);
     if (transcriptId) {
-      router.push(`/transcripts/${transcriptId}`);
+      router.push(`/transcripts/view?id=${transcriptId}`);
     }
   };
 

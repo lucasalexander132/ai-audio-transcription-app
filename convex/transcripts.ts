@@ -287,19 +287,21 @@ export const complete = mutation({
       throw new Error("Transcript not found or unauthorized");
     }
 
-    // Denormalize fullText from words for search
+    // Denormalize fullText and speakerCount from words
     const words = await ctx.db
       .query("words")
       .withIndex("by_transcript", (q) => q.eq("transcriptId", args.transcriptId))
       .collect();
     const sortedWords = words.sort((a, b) => a.startTime - b.startTime);
     const fullText = sortedWords.map((w) => w.text).join(" ");
+    const speakerCount = new Set(words.map((w) => w.speaker ?? 0)).size;
 
     await ctx.db.patch(args.transcriptId, {
       status: "completed",
       completedAt: Date.now(),
       duration: args.duration,
       fullText: fullText || undefined,
+      speakerCount: words.length > 0 ? speakerCount : undefined,
     });
   },
 });
@@ -433,19 +435,21 @@ export const completeTranscript = internalMutation({
       throw new Error("Transcript not found");
     }
 
-    // Denormalize fullText from words for search
+    // Denormalize fullText and speakerCount from words
     const words = await ctx.db
       .query("words")
       .withIndex("by_transcript", (q) => q.eq("transcriptId", args.transcriptId))
       .collect();
     const sortedWords = words.sort((a, b) => a.startTime - b.startTime);
     const fullText = sortedWords.map((w) => w.text).join(" ");
+    const speakerCount = new Set(words.map((w) => w.speaker ?? 0)).size;
 
     await ctx.db.patch(args.transcriptId, {
       status: "completed",
       completedAt: Date.now(),
       duration: args.duration,
       fullText: fullText || undefined,
+      speakerCount: words.length > 0 ? speakerCount : undefined,
     });
   },
 });

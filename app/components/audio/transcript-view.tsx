@@ -18,10 +18,10 @@ interface Segment {
 
 // Consistent speaker colors - warm palette first, then varied
 const SPEAKER_COLORS = [
-  "#D2691E", // Burnt sienna (primary)
+  "#D4622B", // Burnt sienna (primary)
+  "#2D8B5F", // Green
+  "#6B5CE7", // Purple
   "#4A90E2", // Blue
-  "#50C878", // Emerald green
-  "#9B59B6", // Purple
   "#E67E22", // Orange
   "#E74C3C", // Red
   "#1ABC9C", // Turquoise
@@ -39,29 +39,55 @@ const TranscriptSegment = memo(
     transcriptId: Id<"transcripts">;
   }) => {
     const color = SPEAKER_COLORS[segment.speakerNumber % SPEAKER_COLORS.length];
+    const initial = speakerLabel.charAt(0).toUpperCase();
 
     return (
-      <div
-        className="rounded-2xl"
-        style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "14px 16px" }}
-      >
-        <div className="mb-2 flex items-center" style={{ gap: 10 }}>
-          <SpeakerLabelEditor
-            transcriptId={transcriptId}
-            speakerNumber={segment.speakerNumber}
-            currentLabel={speakerLabel}
-            color={color}
-          />
-          <span style={{ fontSize: 12, color: "#B5A99A" }}>
-            {formatTimestamp(segment.startTime)}
+      <div className="flex" style={{ gap: 12, width: "100%" }}>
+        {/* Avatar circle */}
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            backgroundColor: color,
+          }}
+        >
+          <span
+            style={{
+              color: "#FFFFFF",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {initial}
           </span>
         </div>
-        <p
-          className="leading-relaxed"
-          style={{ fontSize: 15, color: "#1A1A1A", margin: 0, lineHeight: 1.6 }}
-        >
-          {segment.text}
-        </p>
+        {/* Content */}
+        <div className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
+          <div className="flex items-center" style={{ gap: 8 }}>
+            <SpeakerLabelEditor
+              transcriptId={transcriptId}
+              speakerNumber={segment.speakerNumber}
+              currentLabel={speakerLabel}
+              color={color}
+            />
+            <span style={{ fontSize: 11, color: "#B5A99A" }}>
+              {formatTimestamp(segment.startTime)}
+            </span>
+          </div>
+          <p
+            style={{
+              fontSize: 14,
+              color: "#1A1A1A",
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            {segment.text}
+          </p>
+        </div>
       </div>
     );
   }
@@ -177,7 +203,7 @@ export function TranscriptView({ transcriptId }: TranscriptViewProps) {
   }
 
   return (
-    <div className="flex flex-col" style={{ gap: 12 }}>
+    <div className="flex flex-col" style={{ gap: 20 }}>
       {segments.map((segment, index) => {
         const label =
           labelMap.get(segment.speakerNumber) || `Speaker ${segment.speakerNumber + 1}`;

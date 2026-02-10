@@ -12,16 +12,23 @@ export function WaveformVisualizer({ mediaStream }: WaveformVisualizerProps) {
   const animationFrameRef = useRef<number | undefined>(undefined);
   const analyserRef = useRef<AnalyserNode | undefined>(undefined);
   const dataArrayRef = useRef<Uint8Array | undefined>(undefined);
+  const statusRef = useRef<string>("idle");
   const { status } = useRecordingStore();
 
+  // Keep status ref in sync
   useEffect(() => {
-    if (!mediaStream || !canvasRef.current) return;
+    statusRef.current = status;
+  }, [status]);
+
+  // Set up audio analyser when stream is available
+  useEffect(() => {
+    if (!mediaStream) return;
 
     const audioContext = new AudioContext();
     const analyser = audioContext.createAnalyser();
     const source = audioContext.createMediaStreamSource(mediaStream);
 
-    analyser.fftSize = 256;
+    analyser.fftSize = 128;
     source.connect(analyser);
 
     const bufferLength = analyser.frequencyBinCount;
@@ -36,6 +43,7 @@ export function WaveformVisualizer({ mediaStream }: WaveformVisualizerProps) {
     };
   }, [mediaStream]);
 
+  // Continuous draw loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -43,37 +51,51 @@ export function WaveformVisualizer({ mediaStream }: WaveformVisualizerProps) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = canvas.clientWidth || 326;
+    const displayHeight = canvas.clientHeight || 120;
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    ctx.scale(dpr, dpr);
+
+    const BAR_WIDTH = 3;
+    const BAR_GAP = 3;
+    const BAR_STEP = BAR_WIDTH + BAR_GAP;
+    const NUM_BARS = Math.floor(displayWidth / BAR_STEP);
+    const CENTER_Y = displayHeight / 2;
+
     const draw = () => {
-      const width = canvas.width;
-      const height = canvas.height;
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
 
-      // Clear canvas with cream background
-      ctx.fillStyle = "#FFF9F0";
-      ctx.fillRect(0, 0, width, height);
+      const analyser = analyserRef.current;
+      const dataArray = dataArrayRef.current;
+      const currentStatus = statusRef.current;
 
-      if (status === "recording" && analyserRef.current && dataArrayRef.current) {
-        analyserRef.current.getByteFrequencyData(dataArrayRef.current as any);
+      if (
+        (currentStatus === "recording" || currentStatus === "paused") &&
+        analyser &&
+        dataArray
+      ) {
+        analyser.getByteFrequencyData(dataArray as any);
+        const step = Math.max(1, Math.floor(dataArray.length / NUM_BARS));
 
-        const barWidth = (width / dataArrayRef.current.length) * 2.5;
-        let x = 0;
+        for (let i = 0; i < NUM_BARS; i++) {
+          const idx = Math.min(i * step, dataArray.length - 1);
+          const value = dataArray[idx] / 255;
+          const barHeight = Math.max(4, value * displayHeight * 0.85);
+          const x = i * BAR_STEP;
 
-        for (let i = 0; i < dataArrayRef.current.length; i++) {
-          const barHeight = (dataArrayRef.current[i] / 255) * height;
-
-          // Burnt sienna color
-          ctx.fillStyle = "#D2691E";
-          ctx.fillRect(x, height - barHeight, barWidth, barHeight);
-
-          x += barWidth + 1;
+          ctx.fillStyle =
+            currentStatus === "paused" ? "#D4622B80" : "#D4622B";
+          ctx.fillRect(x, CENTER_Y - barHeight / 2, BAR_WIDTH, barHeight);
         }
-      } else if (status === "paused" || status === "idle") {
-        // Draw flat line when paused or idle
-        ctx.strokeStyle = "#D2691E";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, height / 2);
-        ctx.lineTo(width, height / 2);
-        ctx.stroke();
+      } else {
+        // Idle: small centered dots
+        for (let i = 0; i < NUM_BARS; i++) {
+          const x = i * BAR_STEP;
+          ctx.fillStyle = "#D4622B30";
+          ctx.fillRect(x, CENTER_Y - 2, BAR_WIDTH, 4);
+        }
       }
 
       animationFrameRef.current = requestAnimationFrame(draw);
@@ -86,15 +108,13 @@ export function WaveformVisualizer({ mediaStream }: WaveformVisualizerProps) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [status]);
+  }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      width={800}
-      height={80}
-      className="w-full rounded-lg"
-      style={{ height: "80px" }}
+      className="w-full"
+      style={{ height: 120, display: "block" }}
     />
   );
 }

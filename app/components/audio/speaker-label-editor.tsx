@@ -92,10 +92,6 @@ export function SpeakerLabelEditor({
     return (
       <div className="flex flex-col" style={{ gap: 4 }}>
         <div className="flex items-center" style={{ gap: 8 }}>
-          <span
-            className="rounded-full shrink-0"
-            style={{ width: 12, height: 12, backgroundColor: color, display: "inline-block" }}
-          />
           <input
             ref={inputRef}
             type="text"
@@ -137,11 +133,7 @@ export function SpeakerLabelEditor({
         cursor: "pointer",
       }}
     >
-      <span
-        className="rounded-full shrink-0"
-        style={{ width: 12, height: 12, backgroundColor: color, display: "inline-block" }}
-      />
-      <span className="font-semibold" style={{ fontSize: 13, color: "#1A1A1A" }}>
+      <span className="font-semibold" style={{ fontSize: 13, color }}>
         {currentLabel}
       </span>
       {/* Pencil icon: always visible on mobile (via opacity), hover-visible on desktop */}

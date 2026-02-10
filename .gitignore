@@ -38,3 +38,16 @@ next-env.d.ts
 
 # convex
 .convex/
+
+# capacitor native platforms
+/android/
+/ios/
+
+# development planning docs
+.planning/
+
+# claude code config
+.claude/
+
+# design reference screenshots
+Screenshot*.png

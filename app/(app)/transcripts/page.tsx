@@ -50,6 +50,7 @@ export default function TranscriptsPage() {
   }, [allTranscriptTags]);
 
   // Build speaker lookup: transcriptId -> label[]
+  // Uses manual labels when available, falls back to default names from speakerCount
   const speakersByTranscript = useMemo(() => {
     const map = new Map<string, string[]>();
     if (allSpeakerLabels) {
@@ -62,8 +63,20 @@ export default function TranscriptsPage() {
         }
       }
     }
+    // Fall back to default speaker names for transcripts without manual labels
+    if (allTranscripts) {
+      for (const t of allTranscripts) {
+        if (!map.has(t._id) && t.speakerCount && t.speakerCount > 0) {
+          const names = Array.from(
+            { length: t.speakerCount },
+            (_, i) => `Speaker ${i + 1}`
+          );
+          map.set(t._id, names);
+        }
+      }
+    }
     return map;
-  }, [allSpeakerLabels]);
+  }, [allSpeakerLabels, allTranscripts]);
 
   // Is search active? Uses searchInput (immediate) instead of debouncedSearch
   // (delayed) to enter "search mode" the moment the user types 2+ characters.
@@ -125,8 +138,8 @@ export default function TranscriptsPage() {
       className="flex flex-col"
       style={{ backgroundColor: "#FBF5EE", minHeight: "100dvh" }}
     >
-      {/* Top spacer */}
-      <div style={{ height: 16 }} />
+      {/* Top spacer (safe area aware) */}
+      <div style={{ height: "max(16px, env(safe-area-inset-top, 16px))" }} />
 
       {/* Header */}
       <div
@@ -288,7 +301,7 @@ export default function TranscriptsPage() {
               transcripts={displayTranscripts}
               tagsByTranscript={tagsByTranscript}
               speakersByTranscript={speakersByTranscript}
-              onCardClick={(id) => router.push(`/transcripts/${id}`)}
+              onCardClick={(id) => router.push(`/transcripts/view?id=${id}`)}
             />
           </m.div>
         )}

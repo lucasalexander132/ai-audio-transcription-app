@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAudioRecorder } from "@/app/lib/hooks/use-audio-recorder";
 import { useRecordingStore } from "@/app/lib/stores/recording-store";
@@ -15,6 +15,17 @@ export default function RecordPage() {
   const [activeTab, setActiveTab] = useState<"microphone" | "upload">("microphone");
   const { error } = useRecordingStore();
   const { formattedTime } = useRecordingTimer();
+
+  // Reset stale state from a previous recording session
+  useEffect(() => {
+    const store = useRecordingStore.getState();
+    if (store.status === "stopped") {
+      store.setStatus("idle");
+      store.setTranscriptId(null);
+      store.resetTimer();
+      store.setError(null);
+    }
+  }, []);
   const {
     status,
     transcriptId,
@@ -30,14 +41,14 @@ export default function RecordPage() {
     const { transcriptId: finalTranscriptId, saved } = stopRecording();
     if (finalTranscriptId) {
       await saved;
-      router.push(`/transcripts/${finalTranscriptId}`);
+      router.push(`/transcripts/view?id=${finalTranscriptId}`);
     }
   };
 
   return (
     <div
       className="flex flex-col"
-      style={{ backgroundColor: "#FBF5EE", height: "100dvh" }}
+      style={{ backgroundColor: "#FBF5EE", height: "100dvh", paddingTop: "env(safe-area-inset-top, 0px)" }}
     >
       {/* Header */}
       <header
@@ -112,77 +123,79 @@ export default function RecordPage() {
         </button>
       </header>
 
-      {/* Source Selector */}
-      <div
-        className="flex justify-center shrink-0"
-        style={{ gap: 12, padding: "12px 24px 0" }}
-      >
-        <button
-          onClick={() => setActiveTab("microphone")}
-          className="flex items-center"
-          style={{
-            gap: 8,
-            padding: "10px 20px",
-            borderRadius: 24,
-            backgroundColor: activeTab === "microphone" ? "#D4622B" : "#FFFFFF",
-            color: activeTab === "microphone" ? "#FFFFFF" : "#8B7E74",
-            border: activeTab === "microphone" ? "none" : "1px solid #EDE6DD",
-          }}
+      {/* Source Selector - hidden during recording/paused */}
+      {status === "idle" && (
+        <div
+          className="flex justify-center shrink-0"
+          style={{ gap: 12, padding: "12px 24px 0" }}
         >
-          <svg
-            style={{ width: 16, height: 16 }}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
+          <button
+            onClick={() => setActiveTab("microphone")}
+            className="flex items-center"
+            style={{
+              gap: 8,
+              padding: "10px 20px",
+              borderRadius: 24,
+              backgroundColor: activeTab === "microphone" ? "#D4622B" : "#FFFFFF",
+              color: activeTab === "microphone" ? "#FFFFFF" : "#8B7E74",
+              border: activeTab === "microphone" ? "none" : "1px solid #EDE6DD",
+            }}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"
-            />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19 10v2a7 7 0 01-14 0v-2"
-            />
-            <line x1="12" y1="19" x2="12" y2="23" strokeLinecap="round" />
-            <line x1="8" y1="23" x2="16" y2="23" strokeLinecap="round" />
-          </svg>
-          <span style={{ fontSize: 13, fontWeight: activeTab === "microphone" ? 600 : 500 }}>
-            Microphone
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveTab("upload")}
-          className="flex items-center"
-          style={{
-            gap: 8,
-            padding: "10px 20px",
-            borderRadius: 24,
-            backgroundColor: activeTab === "upload" ? "#D4622B" : "#FFFFFF",
-            color: activeTab === "upload" ? "#FFFFFF" : "#8B7E74",
-            border: activeTab === "upload" ? "none" : "1px solid #EDE6DD",
-          }}
-        >
-          <svg
-            style={{ width: 16, height: 16 }}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
+            <svg
+              style={{ width: 16, height: 16 }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 10v2a7 7 0 01-14 0v-2"
+              />
+              <line x1="12" y1="19" x2="12" y2="23" strokeLinecap="round" />
+              <line x1="8" y1="23" x2="16" y2="23" strokeLinecap="round" />
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: activeTab === "microphone" ? 600 : 500 }}>
+              Microphone
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab("upload")}
+            className="flex items-center"
+            style={{
+              gap: 8,
+              padding: "10px 20px",
+              borderRadius: 24,
+              backgroundColor: activeTab === "upload" ? "#D4622B" : "#FFFFFF",
+              color: activeTab === "upload" ? "#FFFFFF" : "#8B7E74",
+              border: activeTab === "upload" ? "none" : "1px solid #EDE6DD",
+            }}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"
-            />
-          </svg>
-          <span style={{ fontSize: 13, fontWeight: activeTab === "upload" ? 600 : 500 }}>
-            Upload File
-          </span>
-        </button>
-      </div>
+            <svg
+              style={{ width: 16, height: 16 }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"
+              />
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: activeTab === "upload" ? 600 : 500 }}>
+              Upload File
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Tab Content */}
       {activeTab === "microphone" ? (

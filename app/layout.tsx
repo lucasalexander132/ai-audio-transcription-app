@@ -1,7 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Lora } from "next/font/google";
 import "./globals.css";
-import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ConvexClientProvider } from "./ConvexClientProvider";
+import { ServiceWorkerRegister } from "./components/pwa/sw-register";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const lora = Lora({
+  subsets: ["latin"],
+  variable: "--font-lora",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Transcripts - AI Audio Transcription",
@@ -9,8 +17,11 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Transcripts",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
@@ -19,7 +30,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#D2691E",
+  viewportFit: "cover",
+  themeColor: "#FBF5EE",
 };
 
 export default function RootLayout({
@@ -28,12 +40,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ConvexAuthNextjsServerProvider>
-      <html lang="en">
-        <body>
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-        </body>
-      </html>
-    </ConvexAuthNextjsServerProvider>
+    <html lang="en">
+      <body className={`${inter.variable} ${lora.variable}`}>
+        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ServiceWorkerRegister />
+      </body>
+    </html>
   );
 }

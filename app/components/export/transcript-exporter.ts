@@ -126,7 +126,37 @@ export async function downloadFile(
   blob: Blob,
   filename: string
 ): Promise<void> {
-  // Try Web Share API first (better on mobile / iOS Safari)
+  // On native mobile (Capacitor), use native filesystem + share
+  const { Capacitor } = await import("@capacitor/core");
+  if (Capacitor.isNativePlatform()) {
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const { Share } = await import("@capacitor/share");
+
+    // Convert blob to base64
+    const buffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+
+    // Write to cache directory
+    const result = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+    });
+
+    // Share via native share sheet
+    await Share.share({
+      title: filename,
+      url: result.uri,
+    });
+    return;
+  }
+
+  // Web: Try Web Share API first (better on mobile browsers)
   try {
     const file = new File([blob], filename, { type: blob.type });
     if (navigator.canShare?.({ files: [file] })) {

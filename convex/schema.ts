@@ -20,6 +20,7 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
     isStarred: v.optional(v.boolean()),
     fullText: v.optional(v.string()),
+    speakerCount: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .searchIndex("search_title", {
