@@ -59,10 +59,10 @@ Plans:
   2. Cards that remain in the filtered results smoothly reposition to close gaps left by removed cards (layout animation)
   3. When clearing the search, returning cards animate in with a fade and scale up
   4. On initial page load, transcript cards appear with a brief staggered entrance animation
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md -- Upgrade to domMax, create AnimatedCardList with AnimatePresence + layout + stagger, integrate into transcripts page
 
 #### Phase 07: Tab Slide Transitions
 **Goal**: Users experience direction-aware slide transitions when switching tabs on transcript detail and record pages
