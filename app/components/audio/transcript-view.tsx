@@ -16,7 +16,7 @@ interface Segment {
   text: string;
 }
 
-// Consistent speaker colors
+// Consistent speaker colors - warm palette first, then varied
 const SPEAKER_COLORS = [
   "#D2691E", // Burnt sienna (primary)
   "#4A90E2", // Blue
@@ -41,17 +41,27 @@ const TranscriptSegment = memo(
     const color = SPEAKER_COLORS[segment.speakerNumber % SPEAKER_COLORS.length];
 
     return (
-      <div className="rounded-lg bg-white p-4 shadow-sm">
-        <div className="mb-2 flex items-center gap-3 text-sm">
+      <div
+        className="rounded-2xl"
+        style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "14px 16px" }}
+      >
+        <div className="mb-2 flex items-center" style={{ gap: 10 }}>
           <SpeakerLabelEditor
             transcriptId={transcriptId}
             speakerNumber={segment.speakerNumber}
             currentLabel={speakerLabel}
             color={color}
           />
-          <span className="text-gray-400">{formatTimestamp(segment.startTime)}</span>
+          <span style={{ fontSize: 12, color: "#B5A99A" }}>
+            {formatTimestamp(segment.startTime)}
+          </span>
         </div>
-        <p className="text-gray-900 leading-relaxed">{segment.text}</p>
+        <p
+          className="leading-relaxed"
+          style={{ fontSize: 15, color: "#1A1A1A", margin: 0, lineHeight: 1.6 }}
+        >
+          {segment.text}
+        </p>
       </div>
     );
   }
@@ -79,7 +89,7 @@ export function TranscriptView({ transcriptId }: TranscriptViewProps) {
     return map;
   }, [speakerLabels]);
 
-  // Group words into speaker segments
+  // Group words into speaker segments: consecutive words with same speaker form a segment
   const segments = useMemo(() => {
     if (!words || words.length === 0) return [];
 
@@ -114,23 +124,39 @@ export function TranscriptView({ transcriptId }: TranscriptViewProps) {
     return result;
   }, [words]);
 
-  // Loading state
+  // Loading state - skeleton shimmer lines
   if (words === undefined || speakerLabels === undefined) {
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col" style={{ gap: 12 }}>
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-lg bg-white p-4 shadow-sm animate-pulse"
+            className="rounded-2xl animate-pulse"
+            style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "14px 16px" }}
           >
-            <div className="mb-2 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-gray-200" />
-              <div className="h-4 w-24 bg-gray-200 rounded" />
-              <div className="h-4 w-12 bg-gray-200 rounded" />
+            <div className="mb-2 flex items-center" style={{ gap: 8 }}>
+              <div
+                className="rounded-full"
+                style={{ width: 12, height: 12, backgroundColor: "#EDE6DD" }}
+              />
+              <div
+                className="rounded"
+                style={{ width: 80, height: 14, backgroundColor: "#EDE6DD" }}
+              />
+              <div
+                className="rounded"
+                style={{ width: 40, height: 14, backgroundColor: "#EDE6DD" }}
+              />
             </div>
-            <div className="space-y-2">
-              <div className="h-4 w-full bg-gray-200 rounded" />
-              <div className="h-4 w-5/6 bg-gray-200 rounded" />
+            <div className="flex flex-col" style={{ gap: 6 }}>
+              <div
+                className="rounded"
+                style={{ width: "100%", height: 14, backgroundColor: "#EDE6DD" }}
+              />
+              <div
+                className="rounded"
+                style={{ width: "85%", height: 14, backgroundColor: "#EDE6DD" }}
+              />
             </div>
           </div>
         ))}
@@ -141,14 +167,17 @@ export function TranscriptView({ transcriptId }: TranscriptViewProps) {
   // Empty state
   if (segments.length === 0) {
     return (
-      <div className="rounded-lg bg-white p-8 shadow-sm text-center">
-        <p className="text-gray-400">No transcript available yet</p>
+      <div
+        className="rounded-2xl text-center"
+        style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "32px 16px" }}
+      >
+        <p style={{ fontSize: 14, color: "#B5A99A" }}>No transcript available yet</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col" style={{ gap: 12 }}>
       {segments.map((segment, index) => {
         const label =
           labelMap.get(segment.speakerNumber) || `Speaker ${segment.speakerNumber + 1}`;

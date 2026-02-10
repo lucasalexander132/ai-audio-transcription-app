@@ -24,6 +24,13 @@ export function SpeakerLabelEditor({
   const inputRef = useRef<HTMLInputElement>(null);
   const updateSpeakerLabel = useMutation(api.transcripts.updateSpeakerLabel);
 
+  // Update local label when external label changes (after save propagation)
+  useEffect(() => {
+    if (!isEditing) {
+      setLabel(currentLabel);
+    }
+  }, [currentLabel, isEditing]);
+
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -34,13 +41,20 @@ export function SpeakerLabelEditor({
   const handleSave = async () => {
     const trimmedLabel = label.trim();
 
-    // Validation
+    // Validation: non-empty, max 50 characters
     if (!trimmedLabel) {
       setError("Label cannot be empty");
       return;
     }
     if (trimmedLabel.length > 50) {
       setError("Label too long (max 50 characters)");
+      return;
+    }
+
+    // Skip save if unchanged
+    if (trimmedLabel === currentLabel) {
+      setIsEditing(false);
+      setError(null);
       return;
     }
 
@@ -76,24 +90,36 @@ export function SpeakerLabelEditor({
 
   if (isEditing) {
     return (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col" style={{ gap: 4 }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
           <span
-            className="h-3 w-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: color }}
+            className="rounded-full shrink-0"
+            style={{ width: 12, height: 12, backgroundColor: color, display: "inline-block" }}
           />
           <input
             ref={inputRef}
             type="text"
             value={label}
-            onChange={(e) => setLabel(e.target.value)}
+            onChange={(e) => {
+              setLabel(e.target.value);
+              setError(null);
+            }}
             onKeyDown={handleKeyDown}
             onBlur={handleSave}
-            className="flex-1 rounded border border-[#D2691E] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#D2691E]"
+            className="flex-1 text-sm font-semibold focus:outline-none"
+            style={{
+              padding: "2px 4px",
+              borderBottom: "2px solid #D2691E",
+              backgroundColor: "transparent",
+              color: "#1A1A1A",
+              maxWidth: 160,
+            }}
             maxLength={50}
           />
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && (
+          <p style={{ fontSize: 11, color: "#E53E3E", margin: 0, paddingLeft: 20 }}>{error}</p>
+        )}
       </div>
     );
   }
@@ -101,20 +127,32 @@ export function SpeakerLabelEditor({
   return (
     <button
       onClick={() => setIsEditing(true)}
-      className="flex items-center gap-2 group hover:bg-gray-50 rounded px-2 py-1 -ml-2 transition-colors"
+      className="flex items-center group transition-colors"
+      style={{
+        gap: 8,
+        padding: "2px 6px 2px 0",
+        borderRadius: 6,
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+      }}
     >
       <span
-        className="h-3 w-3 rounded-full flex-shrink-0"
-        style={{ backgroundColor: color }}
+        className="rounded-full shrink-0"
+        style={{ width: 12, height: 12, backgroundColor: color, display: "inline-block" }}
       />
-      <span className="font-semibold text-gray-700">{currentLabel}</span>
+      <span className="font-semibold" style={{ fontSize: 13, color: "#1A1A1A" }}>
+        {currentLabel}
+      </span>
+      {/* Pencil icon: always visible on mobile (via opacity), hover-visible on desktop */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
         strokeWidth={1.5}
         stroke="currentColor"
-        className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+        style={{ width: 14, height: 14, color: "#B5A99A", opacity: 0.6 }}
       >
         <path
           strokeLinecap="round"

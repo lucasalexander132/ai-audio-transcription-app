@@ -12,8 +12,9 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Update current time every 250ms
+  // Update current time every 250ms during playback
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -34,24 +35,32 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
 
     const handleLoadedMetadata = () => {
       setDuration(audio.duration);
+      setIsLoaded(true);
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
+      setCurrentTime(0);
     };
 
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime);
     };
 
+    const handleCanPlay = () => {
+      setIsLoaded(true);
+    };
+
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("canplay", handleCanPlay);
 
     return () => {
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("canplay", handleCanPlay);
     };
   }, [audioUrl]);
 
@@ -85,29 +94,47 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
   };
 
   const formatTime = (seconds: number): string => {
-    if (!isFinite(seconds)) return "00:00";
+    if (!isFinite(seconds) || seconds < 0) return "00:00";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // No audio URL - show unavailable message
   if (!audioUrl) {
     return (
-      <div className="rounded-lg bg-white p-4 shadow-sm">
-        <p className="text-center text-gray-400">No audio available</p>
+      <div
+        className="rounded-2xl p-4"
+        style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD" }}
+      >
+        <p className="text-center text-sm" style={{ color: "#B5A99A" }}>
+          Audio unavailable
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg bg-white p-4 shadow-sm">
+    <div
+      className="rounded-2xl"
+      style={{ backgroundColor: "#FFFFFF", border: "1px solid #EDE6DD", padding: "12px 16px" }}
+    >
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
-      {/* Play/Pause Button */}
-      <div className="flex items-center justify-center mb-4">
+      {/* Compact horizontal layout: Play | Seek bar with times | Speed buttons */}
+      <div className="flex items-center" style={{ gap: 12 }}>
+        {/* Play/Pause Button */}
         <button
           onClick={togglePlayPause}
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-[#D2691E] text-white shadow-md hover:bg-[#B8551A] active:scale-95 transition-all"
+          disabled={!isLoaded}
+          className="flex shrink-0 items-center justify-center transition-all active:scale-95"
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: isLoaded ? "#D2691E" : "#E0D4C8",
+            color: "#FFFFFF",
+          }}
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
@@ -115,9 +142,9 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth={2}
+              strokeWidth={2.5}
               stroke="currentColor"
-              className="h-8 w-8"
+              style={{ width: 20, height: 20 }}
             >
               <path
                 strokeLinecap="round"
@@ -130,9 +157,9 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth={2}
+              strokeWidth={2.5}
               stroke="currentColor"
-              className="h-8 w-8 ml-1"
+              style={{ width: 20, height: 20, marginLeft: 2 }}
             >
               <path
                 strokeLinecap="round"
@@ -142,56 +169,55 @@ export function AudioPlayer({ audioUrl }: AudioPlayerProps) {
             </svg>
           )}
         </button>
-      </div>
 
-      {/* Seek Bar */}
-      <div className="mb-3">
-        <input
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={currentTime}
-          onChange={handleSeek}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#D2691E]"
-        />
-        <div className="mt-1 flex justify-between text-sm text-gray-500">
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+        {/* Seek bar with time labels */}
+        <div className="flex flex-1 flex-col" style={{ gap: 2 }}>
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            step={0.1}
+            value={currentTime}
+            onChange={handleSeek}
+            className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+            style={{
+              background: duration
+                ? `linear-gradient(to right, #D2691E ${(currentTime / duration) * 100}%, #EDE6DD ${(currentTime / duration) * 100}%)`
+                : "#EDE6DD",
+              accentColor: "#D2691E",
+            }}
+          />
+          <div className="flex justify-between">
+            <span style={{ fontSize: 11, color: "#8B7E74" }}>
+              {formatTime(currentTime)}
+            </span>
+            <span style={{ fontSize: 11, color: "#8B7E74" }}>
+              {formatTime(duration)}
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Speed Controls */}
-      <div className="flex justify-center gap-2">
-        <button
-          onClick={() => changePlaybackRate(1)}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-            playbackRate === 1
-              ? "bg-[#D2691E] text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          1x
-        </button>
-        <button
-          onClick={() => changePlaybackRate(1.5)}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-            playbackRate === 1.5
-              ? "bg-[#D2691E] text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          1.5x
-        </button>
-        <button
-          onClick={() => changePlaybackRate(2)}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-            playbackRate === 2
-              ? "bg-[#D2691E] text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-          }`}
-        >
-          2x
-        </button>
+        {/* Speed Controls */}
+        <div className="flex shrink-0" style={{ gap: 4 }}>
+          {[1, 1.5, 2].map((rate) => (
+            <button
+              key={rate}
+              onClick={() => changePlaybackRate(rate)}
+              className="transition-colors"
+              style={{
+                padding: "4px 8px",
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                backgroundColor: playbackRate === rate ? "#D2691E" : "#F5E6D3",
+                color: playbackRate === rate ? "#FFFFFF" : "#8B7E74",
+                minWidth: 36,
+              }}
+            >
+              {rate}x
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
