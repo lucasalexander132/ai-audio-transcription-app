@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { auth } from "./auth";
 
 export const create = mutation({
@@ -56,7 +56,7 @@ export const list = query({
   },
 });
 
-export const appendWords = mutation({
+export const appendWords = internalMutation({
   args: {
     transcriptId: v.id("transcripts"),
     words: v.array(
@@ -70,14 +70,10 @@ export const appendWords = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
-
+    // Internal mutation - auth check happens in the action that calls this
     const transcript = await ctx.db.get(args.transcriptId);
-    if (transcript === null || transcript.userId !== userId) {
-      throw new Error("Transcript not found or unauthorized");
+    if (transcript === null) {
+      throw new Error("Transcript not found");
     }
 
     for (const word of args.words) {
