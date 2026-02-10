@@ -68,3 +68,85 @@ export const transcribeChunk = action({
     return { totalWords: words.length };
   },
 });
+
+export const transcribeFile = action({
+  args: {
+    transcriptId: v.id("transcripts"),
+    storageId: v.id("_storage"),
+    mimeType: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const apiKey = process.env.DEEPGRAM_API_KEY;
+    if (!apiKey) {
+      throw new Error("DEEPGRAM_API_KEY not configured");
+    }
+
+    try {
+      // Read uploaded file from Convex storage
+      const blob = await ctx.storage.get(args.storageId);
+      if (blob === null) {
+        throw new Error("File not found in storage");
+      }
+
+      // Convert to Uint8Array for fetch body
+      const audioBytes = new Uint8Array(await blob.arrayBuffer());
+      console.log(`transcribeFile: ${audioBytes.length} bytes, mime: ${args.mimeType}`);
+
+      // Strip codec params from MIME type
+      const contentType = args.mimeType.split(";")[0].trim();
+
+      // POST to Deepgram REST API
+      const response = await fetch(
+        "https://api.deepgram.com/v1/listen?model=nova-2&diarize=true&punctuate=true&smart_format=true",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Token ${apiKey}`,
+            "Content-Type": contentType,
+          },
+          body: audioBytes,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Deepgram API error:", response.status, errorText);
+        await ctx.runMutation(internal.transcripts.markError, {
+          transcriptId: args.transcriptId,
+          error: `Transcription failed: ${response.status}`,
+        });
+        return;
+      }
+
+      const result = await response.json();
+      const words = result.results?.channels?.[0]?.alternatives?.[0]?.words || [];
+      const duration = result.metadata?.duration ?? 0;
+
+      // Append words using punctuated_word for properly formatted text
+      if (words.length > 0) {
+        await ctx.runMutation(internal.transcripts.appendWords, {
+          transcriptId: args.transcriptId,
+          words: words.map((w: any) => ({
+            text: w.punctuated_word || w.word,
+            speaker: w.speaker ?? 0,
+            startTime: w.start,
+            endTime: w.end,
+            isFinal: true,
+          })),
+        });
+      }
+
+      // Mark transcript as completed with duration
+      await ctx.runMutation(internal.transcripts.completeTranscript, {
+        transcriptId: args.transcriptId,
+        duration: Math.round(duration),
+      });
+    } catch (error: any) {
+      console.error("transcribeFile error:", error);
+      await ctx.runMutation(internal.transcripts.markError, {
+        transcriptId: args.transcriptId,
+        error: error.message || "Unknown transcription error",
+      });
+    }
+  },
+});
