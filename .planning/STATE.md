@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries -- record anything, get a searchable, actionable transcript instantly.
-**Current focus:** v1.1 Micro Interactions -- Phase 05 in progress
+**Current focus:** v1.1 Micro Interactions -- Phase 05 complete
 
 ## Current Position
 
 Milestone: v1.1 Micro Interactions
 Phase: 05 of 08 (Foundation + Search Flash Fix)
-Plan: 01 of 02 in phase 05
-Status: In progress
-Last activity: 2026-02-10 -- Completed 05-01-PLAN.md (search flash fix)
+Plan: 02 of 02 in phase 05
+Status: Phase complete
+Last activity: 2026-02-10 -- Completed 05-02-PLAN.md (motion animation foundation)
 
-Progress: [█░░░░░░░░░] ~10% (1 plan complete, phase 05 in progress)
+Progress: [██░░░░░░░░] ~20% (2 plans complete, phase 05 done)
 
 ## Performance Metrics
 
@@ -24,7 +24,13 @@ Progress: [█░░░░░░░░░] ~10% (1 plan complete, phase 05 in pr
 - Average duration: 2 min
 - Total execution time: 0.4 hours
 
-**By Phase:**
+**v1.1 Velocity:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 05-foundation-search-flash-fix | 2 | 4 min | 2 min |
+
+**By Phase (v1.0):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
@@ -47,6 +53,9 @@ v1.1 decisions:
 - [05-01] Used searchInput.length >= 2 (immediate) for isSearchActive instead of debouncedSearch -- prevents flash during both debounce gap and Convex loading gap
 - [05-01] Used precisely-typed generic useStableQuery instead of cast-based typing -- better TypeScript strictness
 - [05-01] useStableQuery only needed for search query; allTranscripts/tags/speakers use regular useQuery (static args)
+- [05-02] Used domAnimation (not domMax) to keep async chunk ~6kb; can upgrade when drag/layout needed in Phase 06+
+- [05-02] MotionProvider wraps children but not FABMenu to avoid unnecessary re-renders
+- [05-02] LazyMotion strict mode enforced -- all animated components must use m.div not motion.div
 
 ### Pending Todos
 
@@ -59,6 +68,6 @@ v1.1 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-10 -- Completed 05-01-PLAN.md (search flash fix)
-Stopped at: Phase 05, Plan 01 complete. Plan 02 (animation foundation) next.
+Last session: 2026-02-10 -- Completed 05-02-PLAN.md (motion animation foundation)
+Stopped at: Phase 05 complete. Phase 06 (micro-interactions-recording) ready to plan.
 Resume file: None
