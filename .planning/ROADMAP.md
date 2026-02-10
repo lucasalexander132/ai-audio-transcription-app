@@ -29,7 +29,7 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 
 ### Phases
 
-- [ ] **Phase 05: Foundation + Search Flash Fix** - Install animation deps, create useStableQuery hook, fix flash bug, establish accessibility baseline
+- [x] **Phase 05: Foundation + Search Flash Fix** (2 plans) - Install animation deps, create useStableQuery hook, fix flash bug, establish accessibility baseline
 - [ ] **Phase 06: Search Filtering Animations** - Animated transcript card enter/exit/reposition during search filtering
 - [ ] **Phase 07: Tab Slide Transitions** - Direction-aware slide transitions between tabs on transcript detail and record pages
 - [ ] **Phase 08: Page Transitions** - Animated route transitions via FrozenRouter + AnimatePresence
@@ -47,8 +47,8 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Fix search flash bug with useStableQuery hook + input-aware search
-- [ ] 05-02-PLAN.md -- Install motion, create MotionProvider, add reduced-motion CSS baseline
+- [x] 05-01-PLAN.md -- Fix search flash bug with useStableQuery hook + input-aware search
+- [x] 05-02-PLAN.md -- Install motion, create MotionProvider, add reduced-motion CSS baseline
 
 #### Phase 06: Search Filtering Animations
 **Goal**: Users see transcript cards animate smoothly in and out as search results change
@@ -99,7 +99,7 @@ Plans:
 | 02. File Upload & Batch Processing | v1.0 | 2/2 | Complete | 2026-02-10 |
 | 03. Library & Organization | v1.0 | 3/3 | Complete | 2026-02-10 |
 | 04. AI Intelligence & Settings | v1.0 | 3/3 | Complete | 2026-02-10 |
-| 05. Foundation + Search Flash Fix | v1.1 | 0/2 | Not started | - |
+| 05. Foundation + Search Flash Fix | v1.1 | 2/2 | Complete | 2026-02-10 |
 | 06. Search Filtering Animations | v1.1 | 0/? | Not started | - |
 | 07. Tab Slide Transitions | v1.1 | 0/? | Not started | - |
 | 08. Page Transitions | v1.1 | 0/? | Not started | - |
