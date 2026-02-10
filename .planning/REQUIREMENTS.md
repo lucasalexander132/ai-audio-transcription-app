@@ -9,45 +9,45 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Recording
 
-- [ ] **REC-01**: User can record audio via device microphone with live waveform visualization
-- [ ] **REC-02**: User can upload pre-recorded audio files (MP3, WAV, M4A, WebM) for transcription
-- [ ] **REC-03**: User can pause and resume recording during a session
-- [ ] **REC-04**: User sees a timer showing elapsed recording duration
+- [x] **REC-01**: User can record audio via device microphone with live waveform visualization
+- [x] **REC-02**: User can upload pre-recorded audio files (MP3, WAV, M4A, WebM) for transcription
+- [x] **REC-03**: User can pause and resume recording during a session
+- [x] **REC-04**: User sees a timer showing elapsed recording duration
 
 ### Transcription
 
-- [ ] **TRX-01**: Real-time speech-to-text transcription appears as user speaks (Deepgram streaming)
-- [ ] **TRX-02**: Speakers are automatically detected and labeled (Speaker 1, Speaker 2, etc.)
-- [ ] **TRX-03**: User can rename speaker labels (Speaker 1 → Sarah Chen)
-- [ ] **TRX-04**: User can play back recorded audio with seek bar and speed controls (1x, 1.5x, 2x)
-- [ ] **TRX-05**: Timestamps are shown alongside speaker text in transcript view
+- [x] **TRX-01**: Real-time speech-to-text transcription appears as user speaks (Deepgram streaming)
+- [x] **TRX-02**: Speakers are automatically detected and labeled (Speaker 1, Speaker 2, etc.)
+- [x] **TRX-03**: User can rename speaker labels (Speaker 1 → Sarah Chen)
+- [x] **TRX-04**: User can play back recorded audio with seek bar and speed controls (1x, 1.5x, 2x)
+- [x] **TRX-05**: Timestamps are shown alongside speaker text in transcript view
 
 ### AI Features
 
-- [ ] **AI-01**: User can generate an AI summary with overview paragraph (Claude API)
-- [ ] **AI-02**: AI extracts key discussion points as bullet list
-- [ ] **AI-03**: AI extracts action items with assigned speakers
+- [x] **AI-01**: User can generate an AI summary with overview paragraph (Claude API)
+- [x] **AI-02**: AI extracts key discussion points as bullet list
+- [x] **AI-03**: AI extracts action items with assigned speakers
 
 ### Library
 
-- [ ] **LIB-01**: User can browse all transcripts in a scrollable list
-- [ ] **LIB-02**: User can search transcripts by title and content
-- [ ] **LIB-03**: User can filter transcripts via tabs (All, Recent, Starred, Meetings)
-- [ ] **LIB-04**: User can star/bookmark transcripts for quick access
-- [ ] **LIB-05**: User can add custom tags to transcripts (Sprint Review, Podcast, etc.)
+- [x] **LIB-01**: User can browse all transcripts in a scrollable list
+- [x] **LIB-02**: User can search transcripts by title and content
+- [x] **LIB-03**: User can filter transcripts via tabs (All, Recent, Starred, Meetings)
+- [x] **LIB-04**: User can star/bookmark transcripts for quick access
+- [x] **LIB-05**: User can add custom tags to transcripts (Sprint Review, Podcast, etc.)
 
 ### Settings & Auth
 
-- [ ] **AUTH-01**: User can create account and log in via Convex Auth
-- [ ] **AUTH-02**: User session persists across browser refresh
-- [ ] **SET-01**: User can select transcription language
-- [ ] **SET-02**: User can toggle auto-punctuation on/off
-- [ ] **SET-03**: User can export transcript as PDF or TXT
+- [x] **AUTH-01**: User can create account and log in via Convex Auth
+- [x] **AUTH-02**: User session persists across browser refresh
+- [x] **SET-01**: User can select transcription language
+- [x] **SET-02**: User can toggle auto-punctuation on/off
+- [x] **SET-03**: User can export transcript as PDF or TXT
 
 ### Navigation & PWA
 
-- [ ] **NAV-01**: FAB navigation menu with Transcripts, Record, and Settings options
-- [ ] **NAV-02**: App is installable as PWA with manifest, icons, and mobile-first design
+- [x] **NAV-01**: FAB navigation menu with Transcripts, Record, and Settings options
+- [x] **NAV-02**: App is installable as PWA with manifest, icons, and mobile-first design
 
 ## v2 Requirements
 
@@ -108,11 +108,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIB-04 | Phase 3 | Complete |
 | LIB-05 | Phase 3 | Complete |
 | SET-03 | Phase 3 | Complete |
-| AI-01 | Phase 4 | Pending |
-| AI-02 | Phase 4 | Pending |
-| AI-03 | Phase 4 | Pending |
-| SET-01 | Phase 4 | Pending |
-| SET-02 | Phase 4 | Pending |
+| AI-01 | Phase 4 | Complete |
+| AI-02 | Phase 4 | Complete |
+| AI-03 | Phase 4 | Complete |
+| SET-01 | Phase 4 | Complete |
+| SET-02 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 24 total
@@ -121,4 +121,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-09*
-*Last updated: 2026-02-09 after roadmap creation*
+*Last updated: 2026-02-10 after Phase 4 completion*
