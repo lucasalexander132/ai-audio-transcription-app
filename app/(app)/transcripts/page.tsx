@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useDebounce } from "@/app/lib/hooks/use-debounce";
+import { useStableQuery } from "@/app/lib/hooks/use-stable-query";
 import { SearchBar } from "@/app/components/library/search-bar";
 import { FilterTabs } from "@/app/components/library/filter-tabs";
 import { TranscriptCard } from "@/app/components/library/transcript-card";
@@ -24,11 +25,12 @@ export default function TranscriptsPage() {
 
   // Data queries
   const allTranscripts = useQuery(api.transcripts.list);
-  const searchResults = useQuery(
+  const searchResults = useStableQuery(
     api.transcripts.search,
     debouncedSearch.length >= 2 ? { searchTerm: debouncedSearch } : "skip"
   );
   const allTranscriptTags = useQuery(api.tags.getAllTranscriptTags);
+  const allSpeakerLabels = useQuery(api.transcripts.getAllSpeakerLabels);
 
   // Build tag lookup: transcriptId -> tagName[]
   const tagsByTranscript = useMemo(() => {
@@ -46,9 +48,27 @@ export default function TranscriptsPage() {
     return map;
   }, [allTranscriptTags]);
 
-  // Is search active?
-  const isSearchActive =
-    debouncedSearch.length >= 2 && searchResults !== undefined;
+  // Build speaker lookup: transcriptId -> label[]
+  const speakersByTranscript = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (allSpeakerLabels) {
+      for (const { transcriptId, label } of allSpeakerLabels) {
+        const existing = map.get(transcriptId);
+        if (existing) {
+          existing.push(label);
+        } else {
+          map.set(transcriptId, [label]);
+        }
+      }
+    }
+    return map;
+  }, [allSpeakerLabels]);
+
+  // Is search active? Uses searchInput (immediate) instead of debouncedSearch
+  // (delayed) to enter "search mode" the moment the user types 2+ characters.
+  // This prevents the flash during the debounce gap, while useStableQuery
+  // prevents the flash during the Convex query loading gap.
+  const isSearchActive = searchInput.length >= 2;
 
   // Filtered transcripts (tab-based) when search is not active
   const filteredTranscripts = useMemo(() => {
@@ -78,10 +98,23 @@ export default function TranscriptsPage() {
     }
   }, [allTranscripts, activeTab, tagsByTranscript]);
 
-  // Display list: search results or filtered transcripts
-  const displayTranscripts = isSearchActive
-    ? searchResults ?? []
-    : filteredTranscripts;
+  // Display list: search results (with tag matches) or filtered transcripts
+  const displayTranscripts = useMemo(() => {
+    if (!isSearchActive) return filteredTranscripts;
+
+    const backendResults = searchResults ?? [];
+    const seen = new Set(backendResults.map((t) => t._id));
+
+    // Find transcripts whose tags match the search term
+    const lowerSearch = debouncedSearch.toLowerCase();
+    const tagMatches = (allTranscripts ?? []).filter((t) => {
+      if (seen.has(t._id)) return false;
+      const tags = tagsByTranscript.get(t._id) ?? [];
+      return tags.some((tag) => tag.toLowerCase().includes(lowerSearch));
+    });
+
+    return [...backendResults, ...tagMatches];
+  }, [isSearchActive, filteredTranscripts, searchResults, debouncedSearch, allTranscripts, tagsByTranscript]);
 
   // Loading state
   const isLoading = allTranscripts === undefined;
@@ -239,6 +272,7 @@ export default function TranscriptsPage() {
               key={transcript._id}
               transcript={transcript}
               tags={tagsByTranscript.get(transcript._id) ?? []}
+              speakers={speakersByTranscript.get(transcript._id) ?? []}
               onClick={() => router.push(`/transcripts/${transcript._id}`)}
             />
           ))}
