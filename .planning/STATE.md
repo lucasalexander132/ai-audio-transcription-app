@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Real-time audio transcription with intelligent AI summaries -- record anything, get a searchable, actionable transcript instantly.
-**Current focus:** v1.1 Micro Interactions -- Phase 05 complete
+**Current focus:** v1.1 Micro Interactions -- Phase 06 complete
 
 ## Current Position
 
 Milestone: v1.1 Micro Interactions
-Phase: 05 of 08 (Foundation + Search Flash Fix)
-Plan: 02 of 02 in phase 05
+Phase: 06 of 08 (Search Filtering Animations)
+Plan: 01 of 01 in phase 06
 Status: Phase complete
-Last activity: 2026-02-10 -- Completed 05-02-PLAN.md (motion animation foundation)
+Last activity: 2026-02-10 -- Completed 06-01-PLAN.md (animated search filtering)
 
-Progress: [██░░░░░░░░] ~20% (2 plans complete, phase 05 done)
+Progress: [███░░░░░░░] ~40% (3 plans complete, phase 06 done)
 
 ## Performance Metrics
 
@@ -29,6 +29,7 @@ Progress: [██░░░░░░░░] ~20% (2 plans complete, phase 05 done
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 05-foundation-search-flash-fix | 2 | 4 min | 2 min |
+| 06-search-filtering-animations | 1 | ~4 min | ~4 min |
 
 **By Phase (v1.0):**
 
@@ -56,6 +57,10 @@ v1.1 decisions:
 - [05-02] Used domAnimation (not domMax) to keep async chunk ~6kb; can upgrade when drag/layout needed in Phase 06+
 - [05-02] MotionProvider wraps children but not FABMenu to avoid unnecessary re-renders
 - [05-02] LazyMotion strict mode enforced -- all animated components must use m.div not motion.div
+- [06-01] Upgraded domAnimation to domMax (~6kb to ~16kb async chunk) for layout animation support
+- [06-01] Used `m` from "motion/react" not "motion/react-m" (doesn't exist in Motion v12)
+- [06-01] AnimatePresence popLayout mode for immediate flow removal during card exit
+- [06-01] Stagger entrance capped at 8 cards (500ms max total) to avoid slow initial load
 
 ### Pending Todos
 
@@ -68,6 +73,6 @@ v1.1 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-10 -- Completed 05-02-PLAN.md (motion animation foundation)
-Stopped at: Phase 05 complete. Phase 06 (micro-interactions-recording) ready to plan.
+Last session: 2026-02-10 -- Completed 06-01-PLAN.md (animated search filtering)
+Stopped at: Phase 06 complete. Phase 07 (tab slide transitions) ready to plan.
 Resume file: None

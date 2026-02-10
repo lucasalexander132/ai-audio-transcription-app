@@ -30,7 +30,7 @@ Full archive: `.planning/milestones/v1.0-ROADMAP.md`
 ### Phases
 
 - [x] **Phase 05: Foundation + Search Flash Fix** (2 plans) - Install animation deps, create useStableQuery hook, fix flash bug, establish accessibility baseline
-- [ ] **Phase 06: Search Filtering Animations** - Animated transcript card enter/exit/reposition during search filtering
+- [x] **Phase 06: Search Filtering Animations** (1 plan) - Animated transcript card enter/exit/reposition during search filtering
 - [ ] **Phase 07: Tab Slide Transitions** - Direction-aware slide transitions between tabs on transcript detail and record pages
 - [ ] **Phase 08: Page Transitions** - Animated route transitions via FrozenRouter + AnimatePresence
 
@@ -62,7 +62,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 06-01-PLAN.md -- Upgrade to domMax, create AnimatedCardList with AnimatePresence + layout + stagger, integrate into transcripts page
+- [x] 06-01-PLAN.md -- Upgrade to domMax, create AnimatedCardList with AnimatePresence + layout + stagger, integrate into transcripts page
 
 #### Phase 07: Tab Slide Transitions
 **Goal**: Users experience direction-aware slide transitions when switching tabs on transcript detail and record pages
@@ -100,6 +100,6 @@ Plans:
 | 03. Library & Organization | v1.0 | 3/3 | Complete | 2026-02-10 |
 | 04. AI Intelligence & Settings | v1.0 | 3/3 | Complete | 2026-02-10 |
 | 05. Foundation + Search Flash Fix | v1.1 | 2/2 | Complete | 2026-02-10 |
-| 06. Search Filtering Animations | v1.1 | 0/? | Not started | - |
+| 06. Search Filtering Animations | v1.1 | 1/1 | Complete | 2026-02-10 |
 | 07. Tab Slide Transitions | v1.1 | 0/? | Not started | - |
 | 08. Page Transitions | v1.1 | 0/? | Not started | - |
