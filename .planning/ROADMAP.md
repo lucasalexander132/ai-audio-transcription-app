@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Real-Time Transcription** - Auth, recording, live transcription, playback, PWA
 - [x] **Phase 2: File Upload & Batch Processing** - Upload audio files for transcription
-- [ ] **Phase 3: Library & Organization** - Search, filters, tags, export, starred transcripts
+- [x] **Phase 3: Library & Organization** - Search, filters, tags, export, starred transcripts
 - [ ] **Phase 4: AI Intelligence & Settings** - Summaries, action items, settings
 
 ## Phase Details
@@ -71,7 +71,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md -- Schema extensions (isStarred, fullText, search indexes, tags/transcriptTags tables) + backend queries/mutations
 - [x] 03-02-PLAN.md -- Library page overhaul: search bar, filter tabs, star toggle, enhanced transcript cards, empty states
-- [ ] 03-03-PLAN.md -- Transcript detail: export menu (PDF/TXT), tag picker modal, tag chips
+- [x] 03-03-PLAN.md -- Transcript detail: export menu (PDF/TXT), tag picker modal, tag chips
 
 ### Phase 4: AI Intelligence & Settings
 **Goal**: Users get AI-generated summaries and can customize transcription settings
@@ -97,5 +97,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation & Real-Time Transcription | 3/3 | Complete | 2026-02-10 |
 | 2. File Upload & Batch Processing | 2/2 | Complete | 2026-02-10 |
-| 3. Library & Organization | 2/3 | In progress | - |
+| 3. Library & Organization | 3/3 | Complete | 2026-02-10 |
 | 4. AI Intelligence & Settings | 0/TBD | Not started | - |
