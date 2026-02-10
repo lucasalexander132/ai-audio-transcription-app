@@ -12,25 +12,21 @@ Real-time audio transcription with intelligent AI summaries — record anything,
 
 ### Validated
 
-(None yet — ship to validate)
+- Record audio via microphone with live waveform — v1.0
+- Upload audio files (MP3, WAV, M4A, WebM) for transcription — v1.0
+- Real-time speech-to-text via Deepgram with speaker diarization — v1.0
+- Rename speaker labels inline — v1.0
+- Audio playback with seek and speed controls (1x, 1.5x, 2x) — v1.0
+- AI summaries with overview, key points, action items via Claude — v1.0
+- Transcript library with search, filter tabs, starring, tags — v1.0
+- Export transcripts as PDF or TXT — v1.0
+- Convex Auth with persistent sessions — v1.0
+- Language selection and auto-punctuation settings — v1.0
+- Installable PWA with FAB navigation — v1.0
 
 ### Active
 
-- [ ] User can record audio via device microphone with live waveform visualization
-- [ ] User can upload pre-recorded audio files for transcription
-- [ ] Real-time speech-to-text transcription via Deepgram streaming API
-- [ ] Automatic speaker detection (diarization) with ability to rename speakers
-- [ ] Live transcript display during recording with speaker attribution
-- [ ] Full transcript view with audio playback, seek, and speed controls
-- [ ] AI-generated summaries with overview, key points, and action items (Claude API)
-- [ ] Transcript library with search, filter tabs (All, Recent, Starred, Meetings), and tags
-- [ ] Star/bookmark transcripts
-- [ ] Tag transcripts with custom labels
-- [ ] FAB navigation menu (Transcripts, Record, Settings)
-- [ ] User authentication via Convex Auth
-- [ ] Settings: language, speaker detection toggle, auto-punctuation, recording quality, export format
-- [ ] Auto-save to cloud option
-- [ ] Mobile-first responsive PWA (installable)
+(None — v1.0 complete. Define new requirements with `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -42,12 +38,19 @@ Real-time audio transcription with intelligent AI summaries — record anything,
 
 ## Context
 
-- Mockups exist in `pencil-new.pen` covering all 7 screens: Home/Library, Recording, Transcript View, AI Summary, FAB Nav (collapsed/expanded), Settings
-- Design uses warm color palette with orange/burnt sienna accents on cream background
-- Google Meet-style transcription is the UX reference point — transcription appears in real-time as audio plays
-- Deepgram provides real-time streaming transcription with built-in speaker diarization
-- Convex provides real-time reactive backend with built-in auth, eliminating need for separate auth provider
-- Claude API handles post-recording summarization (overview, key points, action items with assignees)
+Shipped v1.0 with 8,586 LOC TypeScript across 84 files.
+
+**Tech stack:** Next.js 15, Convex (auth + real-time backend), Deepgram Nova-2 (transcription), Claude haiku-4-5 (AI summaries), Zustand (state), Tailwind CSS, jsPDF (export)
+
+**Design:** Warm cream (#FFF9F0) background with burnt sienna (#D2691E) accents. Mobile-first with FAB navigation. Mockups in `pencil-new.pen`.
+
+**External services requiring API keys:**
+- Deepgram: `npx convex env set DEEPGRAM_API_KEY <key>`
+- Anthropic: `npx convex env set ANTHROPIC_API_KEY <key>`
+
+**Known considerations:**
+- Physical iOS device testing still recommended (simulators insufficient for audio)
+- Existing transcripts before Phase 3 lack fullText (search only finds newer transcripts)
 
 ## Constraints
 
@@ -61,11 +64,20 @@ Real-time audio transcription with intelligent AI summaries — record anything,
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Next.js + Convex stack | User preference, Convex provides real-time reactivity and built-in auth | — Pending |
-| Deepgram for transcription | Real-time streaming, good diarization, generous free tier | — Pending |
-| Claude for AI summaries | User preference for Anthropic's models | — Pending |
-| Mobile-first PWA | Mockups are mobile-sized, PWA enables installability | — Pending |
-| Full mockup scope for v1 | User wants all mockup features in initial release | — Pending |
+| Next.js + Convex stack | User preference, Convex provides real-time reactivity and built-in auth | Good |
+| Deepgram for transcription | Real-time streaming, good diarization, generous free tier | Good |
+| Claude haiku-4-5 for AI summaries | Cost-effective, fast, sufficient quality for summarization | Good |
+| Mobile-first PWA | Mockups are mobile-sized, PWA enables installability | Good |
+| Deepgram REST API (not WebSocket) | Simpler chunk-based approach, no KeepAlive needed | Good — slightly higher latency (~2s) but more reliable |
+| Convex actions as API proxy | Keep Deepgram/Anthropic API keys server-side | Good — keys never exposed to browser |
+| Zustand for recording state | Lightweight shared state across components | Good |
+| MediaRecorder MIME fallback chain | iOS Safari limited format support | Good — automatic cross-browser compatibility |
+| HTML5 Audio for playback | No third-party player needed, full control | Good |
+| Junction table for tags | Many-to-many enables tag reuse, rename, query | Good |
+| Lazy-load jsPDF | Avoid ~200KB bundle for infrequent export | Good |
+| Web Share API first, download fallback | iOS Safari lacks file download | Good |
+| Prompt-based JSON from Claude | Simpler than structured outputs SDK | Good — strip markdown fences as safety net |
+| buildDeepgramUrl helper | Centralized URL construction from user settings | Good |
 
 ---
-*Last updated: 2026-02-09 after initialization*
+*Last updated: 2026-02-10 after v1.0 milestone*
