@@ -26,7 +26,7 @@ A mobile-first web app for real-time audio transcription with AI-powered summari
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/ai-audio-transcription-app.git
+git clone https://github.com/lucasalexander132/ai-audio-transcription-app.git
 cd ai-audio-transcription-app
 ```
 
